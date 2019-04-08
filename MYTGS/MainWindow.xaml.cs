@@ -5,13 +5,6 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 
 namespace MYTGS
 {
@@ -20,9 +13,17 @@ namespace MYTGS
     /// </summary>
     public partial class MainWindow : Window
     {
+        Firefly FF = new Firefly();
         public MainWindow()
         {
             InitializeComponent();
+            FF.LoginUI();
+            FF.OnLogin += FF_OnLogin;
+        }
+
+        private void FF_OnLogin(object sender, EventArgs e)
+        {
+            UserName.Content = FF.name;
         }
     }
 }

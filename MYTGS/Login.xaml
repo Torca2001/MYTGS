@@ -1,0 +1,18 @@
+﻿<Window x:Class="MYTGS.Login"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:MYTGS"
+        mc:Ignorable="d"
+        Title="Login" Height="450" Width="800" ResizeMode="NoResize" Topmost="True" Closing="Window_Closing">
+    <Grid x:Name="MainGrid" Background="#FF00B9FF">
+        <Grid.RowDefinitions>
+            <RowDefinition x:Name="TopRow" Height="395*"/>
+            <RowDefinition x:Name="BottomRow" Height="Auto"/>
+        </Grid.RowDefinitions>
+        <WebBrowser x:Name="Browser" Navigated="Browser_Navigated"/>
+        <Label x:Name="Status_Label" Content="Trying Log in" Grid.Row="1" HorizontalAlignment="Center" Foreground="White" FontSize="16"/>
+
+    </Grid>
+</Window>

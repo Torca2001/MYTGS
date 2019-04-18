@@ -7,7 +7,14 @@
         mc:Ignorable="d"
         Title="MainWindow" Height="450" Width="800">
     <Grid>
-        <Label x:Name="UserName" Content="Label" HorizontalAlignment="Left" Margin="75,57,0,0" VerticalAlignment="Top"/>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="42*"/>
+            <RowDefinition Height="377*"/>
+        </Grid.RowDefinitions>
+        <Label x:Name="UserName" Content="Label" HorizontalAlignment="Left" VerticalAlignment="Top" FontSize="16"/>
+        <ScrollViewer Margin="47,34,42,32" Grid.Row="1">
+            <TextBox x:Name="TasksBlock" TextWrapping="Wrap" Text="Task"/>
+        </ScrollViewer>
 
     </Grid>
 </Window>

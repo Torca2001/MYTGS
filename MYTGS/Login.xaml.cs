@@ -17,7 +17,6 @@ namespace MYTGS
     {
         public event OnResultEventHandler OnResult;
         private bool Success = false;
-        private int Reroutes = 0;
         public Login(string Url)
         {
             InitializeComponent();
@@ -41,7 +40,6 @@ namespace MYTGS
 
         private void Browser_Navigated(object sender, System.Windows.Navigation.NavigationEventArgs e)
         {
-            Reroutes += 1;
             //Check if url contains token
             Match result = Regex.Match(e.Uri.ToString(), @"token=(.*)");
             if (result.Success)
@@ -62,12 +60,14 @@ namespace MYTGS
                 Close();
                 return;
             }
-            //Display login required message if more then 1 redirect * since the first redirect is sometimes the token redirect
-            if (Reroutes > 1)
-            {
-                MainGrid.Background = Brushes.Orange;
-                Status_Label.Content = "Login Required - *Password will not be saved";
-            }
+            //Checks if content is the redirect page for the token to prevent misfiring login message
+            dynamic doc = Browser.Document;
+            string htmlText = doc.documentElement.InnerHtml;
+            //If html contains Working... which is only shown in the redirect page for a successful login
+            if (htmlText.Contains("Working..."))
+                return;
+            MainGrid.Background = Brushes.Orange;
+            Status_Label.Content = "Login Required - *Password will not be saved";
         }
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)

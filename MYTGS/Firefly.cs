@@ -10,13 +10,15 @@ using System.Threading.Tasks;
 using Newtonsoft.Json;
 using System.Xml;
 using MYTGS;
-using System.Text;
-
+using NLog;
+using System.Windows.Threading;
+using HtmlAgilityPack;
 
 namespace Firefly
 {
     class Firefly
     {
+        Logger logger = LogManager.GetCurrentClassLogger();
         //Login window
         Login LoginWindow;
         //variables from SSO
@@ -27,10 +29,14 @@ namespace Firefly
         private string email;
         private bool canSetTasks;
         //Variables for firefly school
-        private string schoolUrl = null;
+        private string schoolUrl = "";
         private string schoolName;
+        public Dictionary<string, FullTask> AllTasks = new Dictionary<string, FullTask>();
         //Event when Logged in
         public event EventHandler OnLogin;
+        //Events for read and unread events
+        public event EventHandler OnRead;
+        public event EventHandler OnUnread;
         //Auth Token for server access
         private string Token;
         //Device ID for access as well
@@ -44,26 +50,51 @@ namespace Firefly
         public bool CanSetTasks { get => canSetTasks; }
         public string SchoolUrl { get => schoolUrl; }
         public string SchoolName { get => schoolName; }
+        //Unread messages list
+        public Dictionary<int, List<int>> UnReadList = new Dictionary<int, List<int>>();
+        //List of all tasks for logged in user
+        public Dictionary<int, FullTask> Tasks = new Dictionary<int, FullTask>();
+
+        //Timer object for task checking
+        DispatcherTimer TaskTimer = new DispatcherTimer();
 
         public Firefly(string school)
         {
             WebClient web = new WebClient();
             XmlDocument xml = new XmlDocument();
-            xml.LoadXml(web.DownloadString(@"http://appgateway.ffhost.co.uk/appgateway/school/" + school));
-            if (xml.SelectNodes("response") .Count==1&& xml.SelectNodes("response")[0].Attributes["exists"].Value == "true" && xml.SelectNodes("response")[0].Attributes["enabled"].Value=="true")
+            try
             {
-                XmlNode response = xml.SelectNodes("response")[0];
-                schoolName = response.FirstChild.InnerText;
-                if (response.LastChild.Attributes["ssl"].Value == "true")
+                xml.LoadXml(web.DownloadString(@"http://appgateway.ffhost.co.uk/appgateway/school/" + school));
+                if (xml.SelectNodes("response").Count == 1 && xml.SelectNodes("response")[0].Attributes["exists"].Value == "true" && xml.SelectNodes("response")[0].Attributes["enabled"].Value == "true")
                 {
-                    schoolUrl = "https://" + response.LastChild.InnerText;
-                }
-                else
-                {
-                    schoolUrl = "http://" + response.LastChild.InnerText;
+                    XmlNode response = xml.SelectSingleNode("response");
+                    XmlNode addressNode = response.SelectSingleNode("address");
+                    if (addressNode == null)
+                        throw new Exception("No address given!");
+                    schoolName = response.FirstChild.InnerText;
+                    if (addressNode.Attributes["ssl"].Value == "true")
+                    {
+                        schoolUrl = "https://" + addressNode.InnerText;
+                    }
+                    else
+                    {
+                        schoolUrl = "http://" + addressNode.InnerText;
+                    }
                 }
             }
+            catch(Exception e)
+            {
+                logger.Warn(e, "Firefly Object initialization error");
+            }
         }
+        
+
+        //public void MarkAsRead()
+        //{
+        //    //data={eventVersionId:164342,recipient:{type:"user",guid:"DB:Cloud:DB:Synergetic:Stu:618262"}}
+        //    //_api/1.0/tasks/12054/mark_as_read
+        //    //application/x-www-form-urlencoded
+        //}
 
         //file location
         private string Path = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + @"\MYTGS\Data.dat";
@@ -71,18 +102,32 @@ namespace Firefly
         //Login call returns true if token was sucessfully received
         public void LoginUI()
         {
+            if (SchoolUrl == "")
+                return;
             if (LoginWindow!=null)
             {
                 LoginWindow.Show();
                 LoginWindow.Activate();
                 return;
             }
+            Console.WriteLine(schoolUrl + "/login/api/loginui?app_id=android_tasks&device_id=" + schoolUrl);
             LoginWindow = new Login(schoolUrl + "/login/api/loginui?app_id=android_tasks&device_id=" + DeviceID );
             LoginWindow.Show();
             LoginWindow.OnResult += LoginWindow_OnResult;
         }
 
-        public bool LoadfromFile()
+        public string EPR()
+        {
+            //https://mytgs.fireflycloud.net.au/administration-1/extra-period-roster-epr
+            HtmlDocument doc = new HtmlDocument();
+            WebClient web = new WebClient();
+            doc.LoadHtml(web.DownloadString(SchoolUrl + @"/administration-1/extra-period-roster-epr?ffauth_device_id=" + DeviceID + "&ffauth_secret=" + Token));
+            HtmlNode container = doc.GetElementbyId("ffContainer");
+
+            return container.InnerHtml; 
+        }
+
+        public bool LoadKey()
         {
             //Make sure user isn't already logged in or invalid file
             if (LoggedIn || !File.Exists(Path))
@@ -104,11 +149,25 @@ namespace Firefly
             {
                 Directory.CreateDirectory(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + @"\MYTGS");
             }
-            File.WriteAllText(Path, Token);
+            using (FileStream fs = new FileStream(Path, FileMode.OpenOrCreate))
+            {
+                using (TextWriter tw = new StreamWriter(fs, Encoding.UTF8, 1024, true))
+                {
+                    tw.WriteLine(Token);
+                }
+                // Set the stream length to the current position in order to truncate leftover text
+                fs.SetLength(fs.Position);
+            }
             File.SetAttributes(Path, FileAttributes.Hidden);
         }
 
         public int[] GetAllIds()
+        {
+            //1970-01-01T00:00:00
+            return GetIds(new DateTime(1970,1,1));
+        }
+
+        public int[] GetIds(DateTime date)
         {
             //Fail if not logged in
             if (!loggedIn)
@@ -117,8 +176,17 @@ namespace Firefly
             {
                 WebRequest request = WebRequest.Create(SchoolUrl + @"/api/v2/apps/tasks/ids/filterby?ffauth_device_id=" + DeviceID + "&ffauth_secret=" + Token);
                 request.Method = "POST";
-                request.ContentType = "application/json";
+                request.ContentType = "application/json; charset=UTF-8";
                 string html;
+                string strJson = "{\"watermark\":" + JsonConvert.SerializeObject(date, new JsonSerializerSettings{DateFormatString = "yyyy'-'MM'-'dd'T'HH':'mm':'ss'Z'"})+"}";
+                strJson = "";
+                //{ "watermark":"1970-01-01T00:00:00Z"}
+                byte[] data = Encoding.ASCII.GetBytes(strJson);
+                request.ContentLength = data.Length;
+                using (Stream ReqStream = request.GetRequestStream())
+                {
+                    ReqStream.Write(data, 0, data.Length);
+                }
                 using (HttpWebResponse response = (HttpWebResponse)request.GetResponse())
                 using (Stream stream = response.GetResponseStream())
                 using (StreamReader reader = new StreamReader(stream))
@@ -131,13 +199,17 @@ namespace Firefly
             }
             catch (Exception e)
             {
-                //do nothing
+                logger.Error(e, "Fetching of Task ID Error");
             }
             return new int[0];
         }
 
+        
+
         public FullTask[] GetAllTasksByIds(int[] Ids)
         {
+            if (Ids.Length == 0)
+                return new FullTask[0];
             if (Ids.Length <= 50)
                 return GetFiftyTasksByIds(Ids);
             else
@@ -159,6 +231,94 @@ namespace Firefly
             {
                 yield return locations.GetRange(i, Math.Min(nSize, locations.Count - i));
             }
+        }
+
+        public FFEvent[] GetEvents(DateTime start, DateTime end)
+        {
+            if (!loggedIn)
+                return new FFEvent[0];
+            try
+            {
+            JsonSerializerSettings jsonset = new JsonSerializerSettings
+            {
+                DateFormatString = "yyyy'-'MM'-'dd'T'HH':'mm':'ss'Z'"
+            };
+                string strJson ="data=query Query{events(for_guid:\"" + Guid + "\",start:" + JsonConvert.SerializeObject(start,jsonset) + ",end:" + JsonConvert.SerializeObject(end, jsonset) + "){guid,description,start,end,location,subject,attendees{principal{guid,name,sort_key,group{guid,name,sort_key,personal_colour}},role}}}";
+            //"data=query Query{events(for_guid:\"" + Guid + "\",start: \"2019-04-29T14:00:00Z\",end:\"2019-05-010T15:00:00Z\"){guid,description,start,end,location,subject,attendees{principal{guid,name,sort_key,group{guid,name,sort_key,personal_colour}},role}}}";
+            byte[] data = Encoding.ASCII.GetBytes(strJson);
+                WebRequest request = WebRequest.Create(SchoolUrl + @"/_api/1.0/graphql?ffauth_device_id=" + DeviceID + "&ffauth_secret=" + Token);
+                request.Method = "POST";
+                request.ContentType = "application/x-www-form-urlencoded; charset=UTF-8";
+                request.ContentLength = data.Length;
+                string html;
+                using (Stream ReqStream = request.GetRequestStream())
+                {
+                    ReqStream.Write(data, 0, data.Length);
+                }
+                using (HttpWebResponse response = (HttpWebResponse)request.GetResponse())
+                using (Stream stream = response.GetResponseStream())
+                using (StreamReader reader = new StreamReader(stream))
+                {
+                    html = reader.ReadToEnd();
+                }
+                FFEvent[] Events;
+            Events = JsonConvert.DeserializeObject<Data>(html, new JsonSerializerSettings
+            {
+                NullValueHandling = NullValueHandling.Ignore,
+                MissingMemberHandling = MissingMemberHandling.Ignore,
+            }).data.events;
+                return Events;
+            }
+            catch(Exception e)
+            {
+                logger.Error(e, "Fetching of Planner Data Error");
+            }
+            return new FFEvent[0];
+        }
+
+        public void UpdateResponses(ref FullTask task, Response[] responses)
+        {
+            Dictionary<string,Response> respList = task.allRecipientsResponses[0].responses.ToDictionary(x => x.eventGuid);
+            foreach (Response item in responses) {
+                if (respList.ContainsKey(item.eventGuid))
+                {
+                    //Update response item, this is required as they sometimes change
+                    if (respList[item.eventGuid].latestRead != item.latestRead)
+                    {
+                        if (item.latestRead)
+                        {
+                            
+                        }
+                        else
+                        {
+
+                        }
+                    }
+                    respList[item.eventGuid] = item;
+                }
+                else
+                {
+                    //Add new items to list
+                    respList.Add(item.eventGuid, item);
+                }
+            }
+        }
+
+        public Response[] GetResponseForID(int ID)
+        {
+            if (!loggedIn)
+                return new Response[0];
+            //https://mytgs.fireflycloud.net.au/_api/1.0/tasks/11671/responses
+            WebClient web = new WebClient();
+            string html = web.DownloadString(SchoolUrl + @"/_api/1.0/tasks/" + ID + "/responses?ffauth_device_id=" + DeviceID + "&ffauth_secret=" + Token);
+            TmpResp Resp = JsonConvert.DeserializeObject<TmpResp>(html, new JsonSerializerSettings
+            {
+                NullValueHandling = NullValueHandling.Ignore,
+                MissingMemberHandling = MissingMemberHandling.Ignore
+            });
+            if (Resp.responses.responses.Length == 0)
+                return new Response[0];
+            return Resp.responses.responses[0].ToTaskResponses(Resp.responses.users);
         }
 
         private FullTask[] GetFiftyTasksByIds(int[] FiftyIds)
@@ -185,8 +345,6 @@ namespace Firefly
                 {
                     html = reader.ReadToEnd();
                 }
-                
-                Console.WriteLine("D " + html);
                 FullTask[] Tasks;
                 Tasks = JsonConvert.DeserializeObject<FullTask[]>(html, new JsonSerializerSettings
                 {
@@ -195,12 +353,16 @@ namespace Firefly
                 });
                 return Tasks;
             }
-            catch
+            catch(Exception e)
             {
-                //do nothing
+                logger.Error(e, "Fetching of Task data error");
             }
             return new FullTask[0];
         }
+
+        
+
+        
 
         private void LoginWindow_OnResult(object sender, Login.OnResultEventArgs e)
         {
@@ -218,6 +380,8 @@ namespace Firefly
 
         private bool SSO(string key)
         {
+            if (SchoolUrl == "")
+                return false;
             //Create webrequest for User details
             HttpWebRequest request = (HttpWebRequest)WebRequest.Create(SchoolUrl + @"/login/api/sso?ffauth_device_id=" + DeviceID +"&ffauth_secret=" + key);
             string html;
@@ -234,7 +398,7 @@ namespace Firefly
             //Only catch webexception errors
             catch(System.Net.WebException e)
             {
-                //Return  that program failed
+                logger.Warn(e, "SSO Failure");
                 return false;
             }
             //Parse results
@@ -260,7 +424,33 @@ namespace Firefly
         protected virtual void OnLoggedIn(EventArgs e)
         {
             EventHandler handler = OnLogin;
-            handler?.Invoke(this, e);
+            handler?.BeginInvoke(this,e,EndAsyncEvent,null);
+        }
+
+        protected virtual void OnReadEvent(ReadArgs e)
+        {
+            EventHandler handler = OnRead;
+            handler?.BeginInvoke(this, e, EndAsyncEvent, null);
+        }
+
+        protected virtual void OnUnreadEvent(ReadArgs e)
+        {
+            EventHandler handler = OnUnread;
+            handler?.BeginInvoke(this, e, EndAsyncEvent, null);
+        }
+
+        protected virtual void EndAsyncEvent(IAsyncResult iar)
+        {
+            var ar = (System.Runtime.Remoting.Messaging.AsyncResult)iar;
+            var invokedMethod = (EventHandler)ar.AsyncDelegate;
+            try
+            {
+                invokedMethod.EndInvoke(iar);
+            }
+            catch(Exception e)
+            {
+                logger.Warn(e, "Event Listener broke");
+            }
         }
     }
 }

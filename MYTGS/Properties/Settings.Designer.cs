@@ -34,5 +34,17 @@ namespace MYTGS.Properties {
                 this["TasksPath"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("2019-04-21")]
+        public global::System.DateTime LastFetch {
+            get {
+                return ((global::System.DateTime)(this["LastFetch"]));
+            }
+            set {
+                this["LastFetch"] = value;
+            }
+        }
     }
 }

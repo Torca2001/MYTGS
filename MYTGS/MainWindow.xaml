@@ -5,16 +5,65 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:MYTGS"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
+        Title="MYTGS" Height="450" Width="800">
     <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="42*"/>
-            <RowDefinition Height="377*"/>
-        </Grid.RowDefinitions>
-        <Label x:Name="UserName" Content="Label" HorizontalAlignment="Left" VerticalAlignment="Top" FontSize="16"/>
-        <ScrollViewer Margin="47,34,42,32" Grid.Row="1">
-            <TextBox x:Name="TasksBlock" TextWrapping="Wrap" Text="Task"/>
-        </ScrollViewer>
+        <TabControl>
+            <TabControl.Resources>
+                <Style TargetType="TabItem">
+                    <Setter Property="FontSize" Value="20" />
+                    <Setter Property="FontFamily" Value="Segoe UI Semibold" />
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="TabItem">
 
+                                <Border Name="Border" BorderThickness="1,1,1,0" BorderBrush="Gainsboro" Margin="0">
+                                    <ContentPresenter x:Name="ContentSite"
+                                        VerticalAlignment="Center"
+                                        HorizontalAlignment="Center"
+                                        ContentSource="Header"
+                                        Margin="10,2"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsSelected" Value="True">
+                                        <Setter TargetName="Border" Property="Background" Value="LightSkyBlue" />
+                                    </Trigger>
+                                    <Trigger Property="IsSelected" Value="False">
+                                        <Setter TargetName="Border" Property="Background" Value="GhostWhite" />
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </TabControl.Resources>
+            <TabItem Header="Home" >
+                <Grid Background="#FFE5E5E5">
+                    <WebBrowser x:Name="eprbrowser"/>
+                </Grid>
+            </TabItem>
+            <TabItem Header="Tasks">
+                <Grid Background="#FFE5E5E5">
+                    <ListView x:Name="TaskStack">
+                    </ListView>
+                </Grid>
+            </TabItem>
+            <TabItem Header="Profile">
+                <Grid Background="#FFE5E5E5"/>
+            </TabItem>
+            <TabItem Header="Planner">
+                <Grid Background="#FFE5E5E5">
+                    <ScrollViewer>
+                        <StackPanel x:Name="PlannerStack"/>
+                    </ScrollViewer>
+                </Grid>
+            </TabItem>
+            <TabItem>
+                <TabItem.Header>
+                    <Image Width="27"  Source="C:\Users\618262\Pictures\GearSmall.png"/>
+                </TabItem.Header>
+                <Grid Background="#FFE5E5E5"/>
+            </TabItem>
+        </TabControl>
+        <Label x:Name="StatusLabel" Content="Please Login" Margin="0,0,8,0" HorizontalContentAlignment="Right" FontSize="20" Height="37" VerticalAlignment="Top" FontFamily="Segoe UI Historic" HorizontalAlignment="Right"/>
     </Grid>
 </Window>

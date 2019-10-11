@@ -197,7 +197,7 @@ namespace MYTGS
             {
                 try
                 {
-
+                    
                     Match match = reg.Match(item.guid);
                     if (match.Success)
                     {
@@ -264,6 +264,7 @@ namespace MYTGS
         public string Roomcode;
         public bool GotoPeriod;
         public int period;
+        public string Teacher;
 
         public TimetablePeriod(DateTime start, DateTime end, string description, string classcode, string roomcode, bool gotoPeriod, int period)
         {
@@ -273,6 +274,7 @@ namespace MYTGS
             Classcode = classcode;
             Roomcode = roomcode;
             GotoPeriod = gotoPeriod;
+            Teacher = "";
             this.period = period;
         }
 

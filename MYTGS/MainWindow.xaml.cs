@@ -141,12 +141,12 @@ namespace MYTGS
                     PlannerStack.Items.Add(lbl);
                 }));
             }
-            TimetablePeriod[] todayPeriods = Timetablehandler.OverlapCheck(Timetablehandler.FillInTable(Timetablehandler.ParseEventsToPeriods(Timetablehandler.FilterTodayOnly(Events)), DateTime.Now, false));
+            List<TimetablePeriod> todayPeriods = Timetablehandler.ProcessForUse(Events, DateTime.UtcNow, false, true);
             foreach (TimetablePeriod item in todayPeriods)
             {
                 Console.WriteLine("Period " + item.period + " Class " + item.Classcode + " Room: " + item.Roomcode + " start: " +item.Start.ToLocalTime() + " End: " +item.End.ToLocalTime());
             }
-            ClockWindow.SetSchedule(todayPeriods.ToList());
+            ClockWindow.SetSchedule(todayPeriods);
 
 
             //Environment.ExpandEnvironmentVariables((string)Properties.Settings.Default["TasksPath"])

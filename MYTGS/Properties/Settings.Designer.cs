@@ -25,7 +25,7 @@ namespace MYTGS.Properties {
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("%appdata%\\MYTGS\\Tasks")]
+        [global::System.Configuration.DefaultSettingValueAttribute("E:\\Torca\\Documents\\MYTGS\\MYTGS\\bin\\Debug\\MYTGS\\Tasks")]
         public string TasksPath {
             get {
                 return ((string)(this["TasksPath"]));

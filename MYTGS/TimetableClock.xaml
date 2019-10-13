@@ -1,0 +1,18 @@
+﻿<Window x:Class="MYTGS.TimetableClock"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:MYTGS"
+        mc:Ignorable="d"
+        Title="TimetableClock" Height="53.274" Width="190.393" ShowInTaskbar="False" Topmost="True" WindowStartupLocation="CenterScreen" ResizeMode="NoResize" WindowStyle="None" AllowsTransparency="True" Background="White">
+
+    <Grid>
+        <Grid.Background>
+            <ImageBrush ImageSource="Resources/Background.png" Stretch="UniformToFill"/>
+        </Grid.Background>
+        <Label x:Name="DescLabel" FontSize="16" FontWeight="Bold" Content="{Binding LabelDesc, FallbackValue=Go to English}" HorizontalAlignment="Left" VerticalAlignment="Top" Foreground="White"/>
+        <Label x:Name="Noticeme" FontSize="16" FontWeight="Bold" HorizontalAlignment="Left" VerticalAlignment="Bottom" Content="{Binding CountDownStr, FallbackValue=00:00:00}" Foreground="White"/>
+        <Label x:Name="RoomLabel" Content="{Binding LabelRoom, FallbackValue=CE14}" FontSize="16" FontWeight="Bold" VerticalAlignment="Bottom" HorizontalAlignment="Right" Foreground="White"/>
+    </Grid>
+</Window>

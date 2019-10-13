@@ -9,43 +9,43 @@ namespace Firefly
     //Task objects
     struct FullTask
     {
-        public DescriptionDetails descriptionDetails;
-        public bool hideFromRecipients;
-        public string responseReleaseMode;
-        public string pseudoFromGuid;
-        public string pseudoToGuid;
-        public string title;
-        public DateTime setDate;
-        public DateTime dueDate;
-        public Principal setter;
-        public bool archived;
-        public bool draft;
-        public bool hiddenFromParentPortal;
-        public bool hideAddresses;
-        public bool markbookHidden;
-        public bool markbookHighlight;
-        public string markbookDisplaymode;
-        public int assessmentType;
-        public int rubricId;
-        public int assessmentDetailsId;
-        public bool fileSubmissionRequired;
-        public string taskType;
-        public int pageId;
-        public float totalMarkOutOf;
-        public float mark;
-        public string descriptionPageUrl;
-        public Principal[] coowners;
-        public FileAttachments[] fileAttachments;
-        public PageAttachments[] pageAttachments;
-        public Address[] addressees;
-        public RecipientResponse[] recipientsResponses;
-        public RecipientResponse[] allRecipientsResponses;
-        public RecipientResponse[] recipientStatuses;
-        public bool deleted;
-        public bool ownershipRevoked;
-        public bool setInTheFuture;
+        public DescriptionDetails descriptionDetails{ get; set; }
+        public bool hideFromRecipients{ get; set; }
+        public string responseReleaseMode{ get; set; }
+        public string pseudoFromGuid{ get; set; }
+        public string pseudoToGuid{ get; set; }
+        public string title{ get; set; }
+        public DateTime setDate{ get; set; }
+        public DateTime dueDate{ get; set; }
+        public Principal setter{ get; set; }
+        public bool archived{ get; set; }
+        public bool draft{ get; set; }
+        public bool hiddenFromParentPortal{ get; set; }
+        public bool hideAddresses{ get; set; }
+        public bool markbookHidden{ get; set; }
+        public bool markbookHighlight{ get; set; }
+        public string markbookDisplaymode{ get; set; }
+        public int assessmentType{ get; set; }
+        public int rubricId{ get; set; }
+        public int assessmentDetailsId{ get; set; }
+        public bool fileSubmissionRequired{ get; set; }
+        public string taskType{ get; set; }
+        public int pageId{ get; set; }
+        public float totalMarkOutOf{ get; set; }
+        public float mark{ get; set; }
+        public string descriptionPageUrl{ get; set; }
+        public Principal[] coowners{ get; set; }
+        public FileAttachments[] fileAttachments{ get; set; }
+        public PageAttachments[] pageAttachments{ get; set; }
+        public Address[] addressees{ get; set; }
+        public RecipientResponse[] recipientsResponses{ get; set; }
+        public RecipientResponse[] allRecipientsResponses{ get; set; }
+        public RecipientResponse[] recipientStatuses{ get; set; }
+        public bool deleted{ get; set; }
+        public bool ownershipRevoked{ get; set; }
+        public bool setInTheFuture{ get; set; }
         [JsonProperty(Required = Required.Always)]
-        public int id;
+        public int id{ get; set; }
     }
 
     struct DescriptionDetails
@@ -78,38 +78,38 @@ namespace Firefly
         public Principal principal;
     }
 
-    struct Principal
+    public struct Principal
     {
-        public string sortKey;
-        public string guid;
-        public string name;
-        public bool deleted;
+        public string sortKey { set; get; }
+        public string guid { set; get; }
+        public string name { set; get; }
+        public bool deleted { set; get; }
     }
     
     struct RecipientResponse
     {
-        public Principal principal;
-        public Response[] responses;
+        public Principal principal { get; set; }
+        public Response[] responses { get; set; }
     }
 
     struct Response
     {
-        public bool latestRead;
-        public string authorName;
-        public float mark;
-        public bool isMarkAutomated;
-        public string message;
-        public int versionId;
-        public bool released;
-        public DateTime releasedTimestamp;
-        public bool edited;
-        public string authorGuid;
-        public string eventType;
-        public DateTime sentTimestamp;
-        public DateTime createdTimestamp;
-        public bool deleted;
-        public string eventGuid;
-        public AssessmentDetails taskAssessmentDetails;
+        public bool latestRead{ get; set; }
+        public string authorName{ get; set; }
+        public float mark{ get; set; }
+        public bool isMarkAutomated{ get; set; }
+        public string message{ get; set; }
+        public int versionId{ get; set; }
+        public bool released{ get; set; }
+        public DateTime releasedTimestamp{ get; set; }
+        public bool edited{ get; set; }
+        public string authorGuid{ get; set; }
+        public string eventType{ get; set; }
+        public DateTime sentTimestamp{ get; set; }
+        public DateTime createdTimestamp{ get; set; }
+        public bool deleted{ get; set; }
+        public string eventGuid{ get; set; }
+        public AssessmentDetails taskAssessmentDetails{ get; set; }
 
     }
 
@@ -120,7 +120,7 @@ namespace Firefly
         public int assessmentType; //Sometimes a negative int???
     }
 
-    struct Attendee
+    public struct Attendee
     {
         public Principal principal;
         public string role;
@@ -153,7 +153,7 @@ namespace Firefly
         public FFEvent[] events;
     }
 
-    struct FFEvent
+    public struct FFEvent
     {
         public string guid;
         public string description;
@@ -310,5 +310,26 @@ namespace Firefly
         public string EventId { get; set; }
         public int TaskId { get; set; }
         public string ResponseGuid { get; set; }
+    }
+
+
+    //Helper structures
+    struct SSOResponse
+    {
+        public bool valid;
+        public string guid;
+        public string username;
+        public string name;
+        public string email;
+        public bool canSetTasks;
+        public SSOResponse(bool Valid)
+        {
+            valid = Valid;
+            guid = string.Empty;
+            username = string.Empty;
+            name = string.Empty;
+            email = string.Empty;
+            canSetTasks = false;
+        }
     }
 }

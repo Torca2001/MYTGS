@@ -13,6 +13,7 @@ using MYTGS;
 using NLog;
 using System.Windows.Threading;
 using HtmlAgilityPack;
+using System.Windows.Media.Imaging;
 
 namespace Firefly
 {
@@ -22,7 +23,7 @@ namespace Firefly
         //Login window
         Login LoginWindow;
         //variables from SSO
-        private bool loggedIn;
+        private bool loggedIn = false;
         private string name;
         private string username;
         private string guid;
@@ -31,6 +32,7 @@ namespace Firefly
         //Variables for firefly school
         private string schoolUrl = "";
         private string schoolName;
+        private readonly bool _offlineMode = false;
         public Dictionary<string, FullTask> AllTasks = new Dictionary<string, FullTask>();
         //Event when Logged in
         public event EventHandler OnLogin;
@@ -40,7 +42,7 @@ namespace Firefly
         //Auth Token for server access
         private string Token;
         //Device ID for access as well
-        private string DeviceID = "TT" + Environment.MachineName;
+        private readonly string DeviceID = "TT" + Environment.MachineName;
         //Make Variables read only to public
         public bool LoggedIn { get => loggedIn; }
         public string Name { get => name; }
@@ -50,6 +52,7 @@ namespace Firefly
         public bool CanSetTasks { get => canSetTasks; }
         public string SchoolUrl { get => schoolUrl; }
         public string SchoolName { get => schoolName; }
+        public bool OfflineMode { get => _offlineMode; }
         //Unread messages list
         public Dictionary<int, List<int>> UnReadList = new Dictionary<int, List<int>>();
         //List of all tasks for logged in user
@@ -84,10 +87,31 @@ namespace Firefly
             }
             catch(Exception e)
             {
-                logger.Warn(e, "Firefly Object initialization error");
+                logger.Warn(e, "Failed to retrieve Firefly Page. Running in Offline Mode");
+                _offlineMode = true;
             }
         }
         
+        public bool StatusNetworkCheck()
+        {
+            if (string.IsNullOrEmpty(Token))
+            {
+                loggedIn = false;
+                return false;
+            }
+
+            if (loggedIn)
+            {
+                SSOResponse resp = SSO(Token);
+                if (resp.valid)
+                {
+                    SSOApply(resp);
+                    return true;
+                }
+                loggedIn = false;
+            }
+            return false;
+        }
 
         //public void MarkAsRead()
         //{
@@ -110,21 +134,37 @@ namespace Firefly
                 LoginWindow.Activate();
                 return;
             }
-            Console.WriteLine(schoolUrl + "/login/api/loginui?app_id=android_tasks&device_id=" + schoolUrl);
             LoginWindow = new Login(schoolUrl + "/login/api/loginui?app_id=android_tasks&device_id=" + DeviceID );
-            LoginWindow.Show();
             LoginWindow.OnResult += LoginWindow_OnResult;
+            LoginWindow.Show();
         }
 
         public string EPR()
         {
-            //https://mytgs.fireflycloud.net.au/administration-1/extra-period-roster-epr
-            HtmlDocument doc = new HtmlDocument();
-            WebClient web = new WebClient();
-            doc.LoadHtml(web.DownloadString(SchoolUrl + @"/administration-1/extra-period-roster-epr?ffauth_device_id=" + DeviceID + "&ffauth_secret=" + Token));
-            HtmlNode container = doc.GetElementbyId("ffContainer");
+            if (!loggedIn)
+            {
+                return null;
+            }
+            try
+            {
+                //https://mytgs.fireflycloud.net.au/administration-1/extra-period-roster-epr
+                HtmlDocument doc = new HtmlDocument();
+                WebClient web = new WebClient();
+                doc.LoadHtml(web.DownloadString(SchoolUrl + @"/administration-1/extra-period-roster-epr?ffauth_device_id=" + DeviceID + "&ffauth_secret=" + Token));
+                HtmlNode container = doc.GetElementbyId("ffContainer");
 
-            return container.InnerHtml; 
+                return container.InnerHtml;
+            }
+            catch(WebException e)
+            {
+                logger.Warn(e);
+                return null;
+            }
+            catch
+            {
+                return null;
+            }
+            
         }
 
         public bool LoadKey()
@@ -133,8 +173,10 @@ namespace Firefly
             if (LoggedIn || !File.Exists(Path))
                 return false;
             string tmp = File.ReadAllText(Path);
-            if (SSO(tmp))
+            SSOResponse resp = SSO(tmp);
+            if (resp.valid)
             {
+                SSOApply(resp);
                 Token = tmp;
                 loggedIn = true;
                 OnLoggedIn(new EventArgs());
@@ -170,8 +212,11 @@ namespace Firefly
         public int[] GetIds(DateTime date)
         {
             //Fail if not logged in
-            if (!loggedIn)
-                return new int[0];
+            if (!loggedIn && OfflineMode)
+            {
+                return null;
+            }
+
             try
             {
                 WebRequest request = WebRequest.Create(SchoolUrl + @"/api/v2/apps/tasks/ids/filterby?ffauth_device_id=" + DeviceID + "&ffauth_secret=" + Token);
@@ -201,25 +246,33 @@ namespace Firefly
             {
                 logger.Error(e, "Fetching of Task ID Error");
             }
-            return new int[0];
+            return null;
+
         }
 
         
 
         public FullTask[] GetAllTasksByIds(int[] Ids)
         {
+            if (!OfflineMode && !loggedIn)
+            {
+                return null;
+            }
+
             if (Ids.Length == 0)
                 return new FullTask[0];
+
             if (Ids.Length <= 50)
                 return GetFiftyTasksByIds(Ids);
             else
             {
-                int count = 0;
                 List<FullTask> AllTasks = new List<FullTask>();
                 List<int> tmpList = Ids.ToList<int>();
                 foreach (List<int> list in splitList<int>(tmpList,50))
                 {
-                    AllTasks.AddRange(GetFiftyTasksByIds(list.ToArray()));
+                    FullTask[] tmp = GetFiftyTasksByIds(list.ToArray());
+                    if (tmp != null)
+                        AllTasks.AddRange(tmp);
                 }
                 return AllTasks.ToArray();
             }
@@ -233,17 +286,22 @@ namespace Firefly
             }
         }
 
+
+        //Calendar Events
         public FFEvent[] GetEvents(DateTime start, DateTime end)
         {
-            if (!loggedIn)
-                return new FFEvent[0];
+            if (!OfflineMode && !loggedIn)
+            {
+                return null;
+            }
+
             try
             {
             JsonSerializerSettings jsonset = new JsonSerializerSettings
             {
                 DateFormatString = "yyyy'-'MM'-'dd'T'HH':'mm':'ss'Z'"
             };
-                string strJson ="data=query Query{events(for_guid:\"" + Guid + "\",start:" + JsonConvert.SerializeObject(start,jsonset) + ",end:" + JsonConvert.SerializeObject(end, jsonset) + "){guid,description,start,end,location,subject,attendees{principal{guid,name,sort_key,group{guid,name,sort_key,personal_colour}},role}}}";
+                string strJson ="data=query Query{events(for_guid:\"" + guid + "\",start:" + JsonConvert.SerializeObject(start,jsonset) + ",end:" + JsonConvert.SerializeObject(end, jsonset) + "){guid,description,start,end,location,subject,attendees{principal{guid,name,sort_key,group{guid,name,sort_key,personal_colour}},role}}}";
             //"data=query Query{events(for_guid:\"" + Guid + "\",start: \"2019-04-29T14:00:00Z\",end:\"2019-05-010T15:00:00Z\"){guid,description,start,end,location,subject,attendees{principal{guid,name,sort_key,group{guid,name,sort_key,personal_colour}},role}}}";
             byte[] data = Encoding.ASCII.GetBytes(strJson);
                 WebRequest request = WebRequest.Create(SchoolUrl + @"/_api/1.0/graphql?ffauth_device_id=" + DeviceID + "&ffauth_secret=" + Token);
@@ -261,7 +319,7 @@ namespace Firefly
                 {
                     html = reader.ReadToEnd();
                 }
-                FFEvent[] Events;
+            FFEvent[] Events;
             Events = JsonConvert.DeserializeObject<Data>(html, new JsonSerializerSettings
             {
                 NullValueHandling = NullValueHandling.Ignore,
@@ -273,16 +331,24 @@ namespace Firefly
             {
                 logger.Error(e, "Fetching of Planner Data Error");
             }
-            return new FFEvent[0];
+            return null;
         }
 
-        public void UpdateResponses(ref FullTask task, Response[] responses)
+        public FullTask UpdateResponses(FullTask task, Response[] responses)
         {
-            Dictionary<string,Response> respList = task.allRecipientsResponses[0].responses.ToDictionary(x => x.eventGuid);
+            if (responses == null)
+                return task;
+            //Just a mess.... EventGuid can be null and there can be multiple null ones
+            /*
+            Dictionary<string,Response> respList = task.recipientsResponses.Length > 0 ? task.recipientsResponses[0].responses.ToDictionary(x => {
+                int z = 0;
+                x.eventGuid ?? "0"
+            }, x => x) : new Dictionary<string, Response>();
             foreach (Response item in responses) {
-                if (respList.ContainsKey(item.eventGuid))
+                if (respList.ContainsKey(item.eventGuid ?? "0"))
                 {
                     //Update response item, this is required as they sometimes change
+                    
                     if (respList[item.eventGuid].latestRead != item.latestRead)
                     {
                         if (item.latestRead)
@@ -293,39 +359,87 @@ namespace Firefly
                         {
 
                         }
-                    }
-                    respList[item.eventGuid] = item;
+                    } 
+                    //respList[item.eventGuid] = item;
                 }
                 else
                 {
                     //Add new items to list
-                    respList.Add(item.eventGuid, item);
+                    //respList.Add(item.eventGuid, item);
                 }
+            }
+            */
+            return task;
+        }
+
+        public BitmapImage GetUserImage()
+        {
+            if (!OfflineMode && !loggedIn)
+            {
+                return null;
+            }
+
+            try
+            {
+                // /profilepic.aspx?guid= &size=regular
+                using (WebClient webClient = new WebClient())
+                {
+                    byte[] data = webClient.DownloadData(SchoolUrl + @"/profilepic.aspx?guid=" + Guid + "&size=regular&ffauth_device_id=" + DeviceID + "&ffauth_secret=" + Token);
+
+                    using (MemoryStream mem = new MemoryStream(data))
+                    {
+                        BitmapImage img = new BitmapImage();
+                        img.BeginInit();
+                        img.StreamSource = mem;
+                        img.CacheOption = BitmapCacheOption.OnLoad;
+                        img.EndInit();
+                        img.Freeze();
+                        return img;
+                    }
+
+                }
+            }
+            catch
+            {
+                return null;
             }
         }
 
         public Response[] GetResponseForID(int ID)
         {
             if (!loggedIn)
-                return new Response[0];
-            //https://mytgs.fireflycloud.net.au/_api/1.0/tasks/11671/responses
-            WebClient web = new WebClient();
-            string html = web.DownloadString(SchoolUrl + @"/_api/1.0/tasks/" + ID + "/responses?ffauth_device_id=" + DeviceID + "&ffauth_secret=" + Token);
-            TmpResp Resp = JsonConvert.DeserializeObject<TmpResp>(html, new JsonSerializerSettings
             {
-                NullValueHandling = NullValueHandling.Ignore,
-                MissingMemberHandling = MissingMemberHandling.Ignore
-            });
-            if (Resp.responses.responses.Length == 0)
-                return new Response[0];
-            return Resp.responses.responses[0].ToTaskResponses(Resp.responses.users);
+                return null;
+            }
+
+            try
+            {
+                //https://mytgs.fireflycloud.net.au/_api/1.0/tasks/11671/responses
+                WebClient web = new WebClient();
+                string html = web.DownloadString(SchoolUrl + @"/_api/1.0/tasks/" + ID + "/responses?ffauth_device_id=" + DeviceID + "&ffauth_secret=" + Token);
+                TmpResp Resp = JsonConvert.DeserializeObject<TmpResp>(html, new JsonSerializerSettings
+                {
+                    NullValueHandling = NullValueHandling.Ignore,
+                    MissingMemberHandling = MissingMemberHandling.Ignore
+                });
+                if (Resp.responses.responses.Length == 0)
+                    return new Response[0];
+                return Resp.responses.responses[0].ToTaskResponses(Resp.responses.users);
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         private FullTask[] GetFiftyTasksByIds(int[] FiftyIds)
         {
             //max task id size is 50 
-            if (!loggedIn)
-                return new FullTask[0];
+            if (OfflineMode || !loggedIn)
+            {
+                return null;
+            }
+
             try
             {
                 string strIds = "{ \"ids\" : " + JsonConvert.SerializeObject(FiftyIds) + " }";
@@ -356,20 +470,44 @@ namespace Firefly
             catch(Exception e)
             {
                 logger.Error(e, "Fetching of Task data error");
+                return null;
             }
-            return new FullTask[0];
         }
 
-        
+        /// <summary>
+        /// Filters a list of events into ones for the current day
+        /// </summary>
+        /// <param name="events">Events to filter</param>
+        /// <returns>Events for current day</returns>
+        static public List<FFEvent> CurrentDayEvents(FFEvent[] events)
+        {
+            List<FFEvent> results = new List<FFEvent>();
+            foreach (FFEvent item in events)
+            {
+                DateTime startlocal = item.start.ToLocalTime();
+                if (startlocal.Day == DateTime.Now.Day && startlocal.Month == DateTime.Now.Month && startlocal.Year == DateTime.Now.Year)
+                {
+                    results.Add(item);
+                }
+            }
+            return results;
+        }
 
-        
+
 
         private void LoginWindow_OnResult(object sender, Login.OnResultEventArgs e)
         {
             //if successful login and double check
-            if (e.Result&& SSO(e.Token))
+            SSOResponse resp = SSO(e.Token);
+            if (OfflineMode)
+            {
+                //How did the login screen even fire....
+                loggedIn = true;
+            }
+            else if (e.Result && resp.valid)
             {
                 //Set variables
+                SSOApply(resp);
                 loggedIn = true;
                 Token = e.Token;
                 SaveKey();
@@ -378,16 +516,26 @@ namespace Firefly
             }
         }
 
-        private bool SSO(string key)
+        private void SSOApply(SSOResponse response)
+        {
+            //Apply the result from an SSO response to the obejct
+            guid = response.guid;
+            username = response.username;
+            name = response.name;
+            email = response.email;
+            canSetTasks = response.canSetTasks;
+        }
+
+        private SSOResponse SSO(string key)
         {
             if (SchoolUrl == "")
-                return false;
-            //Create webrequest for User details
-            HttpWebRequest request = (HttpWebRequest)WebRequest.Create(SchoolUrl + @"/login/api/sso?ffauth_device_id=" + DeviceID +"&ffauth_secret=" + key);
+                return new SSOResponse(false);
             string html;
             //catch unauthorised error
             try
             {
+                //Create webrequest for User details
+                HttpWebRequest request = (HttpWebRequest)WebRequest.Create(SchoolUrl + @"/login/api/sso?ffauth_device_id=" + DeviceID + "&ffauth_secret=" + key);
                 using (HttpWebResponse response = (HttpWebResponse)request.GetResponse())
                 using (Stream stream = response.GetResponseStream())
                 using (StreamReader reader = new StreamReader(stream))
@@ -395,29 +543,44 @@ namespace Firefly
                     html = reader.ReadToEnd();
                 }
             }
-            //Only catch webexception errors
-            catch(System.Net.WebException e)
+            //catch webexception errors
+            catch(WebException e)
             {
-                logger.Warn(e, "SSO Failure");
-                return false;
+                if (e.Message.StartsWith("The remote name could not be resolved"))
+                {
+                    logger.Info(e, "SSO No Network Connection");
+                    return new SSOResponse(false);
+                }
+                else if (e.Message.StartsWith("The remote server returned an error: (401) Unauthorized"))
+                {
+                    Console.WriteLine(e.Message);
+                    loggedIn = false;
+                    logger.Warn(e, "SSO Token Invalid");
+                }
+                return new SSOResponse(false);
+            }
+            catch
+            {
+                return new SSOResponse(false);
             }
             //Parse results
             Match result = Regex.Match(html, "identifier=\"(.*)\" username=\"(.*)\" name=\"(.*)\" email=\"(.*)\" canSetTask=\"(.*)\"");
-            if (result.Success)
+            if (result.Success && result.Groups.Count>3)
             {
+                SSOResponse tmp = new SSOResponse(true);
                 //Set user GUID
-                guid = result.Groups[1].Value;
+                tmp.guid = result.Groups[1].Value;
                 //Set Username aka id name
-                username = result.Groups[2].Value;
+                tmp.username = result.Groups[2].Value;
                 //Set Name aka full name
-                name = result.Groups[3].Value;
+                tmp.name = result.Groups[3].Value;
                 //Set User Email
-                email = result.Groups[4].Value;
+                tmp.email = result.Groups[4].Value;
                 //Check if cansetTasks is true or yes since its returned as a string and needs to be converted to bool
-                canSetTasks = (result.Groups[1].Value.ToLower() == "yes" || result.Groups[1].Value.ToLower() == "true");
-                return true;
+                tmp.canSetTasks = (result.Groups[1].Value.ToLower() == "yes" || result.Groups[1].Value.ToLower() == "true");
+                return tmp;
             }
-            return false;
+            return new SSOResponse(false);
         }
 
         //Event to fire when a successfull login has occured;

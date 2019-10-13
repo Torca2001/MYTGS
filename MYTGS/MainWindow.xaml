@@ -5,9 +5,9 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:MYTGS"
         mc:Ignorable="d"
-        Title="MYTGS" Height="450" Width="800">
+        Title="MYTGS" Height="450" Width="800" Closing="Window_Closing">
     <Grid>
-        <TabControl>
+        <TabControl TabStripPlacement="Left" x:Name="MainTabControl">
             <TabControl.Resources>
                 <Style TargetType="TabItem">
                     <Setter Property="FontSize" Value="20" />
@@ -16,19 +16,19 @@
                         <Setter.Value>
                             <ControlTemplate TargetType="TabItem">
 
-                                <Border Name="Border" BorderThickness="1,1,1,0" BorderBrush="Gainsboro" Margin="0">
+                                <Border Name="Border" BorderThickness="0,1,1,0" BorderBrush="Gainsboro" Margin="0">
                                     <ContentPresenter x:Name="ContentSite"
                                         VerticalAlignment="Center"
                                         HorizontalAlignment="Center"
                                         ContentSource="Header"
-                                        Margin="10,2"/>
+                                        Margin="10,4"/>
                                 </Border>
                                 <ControlTemplate.Triggers>
                                     <Trigger Property="IsSelected" Value="True">
                                         <Setter TargetName="Border" Property="Background" Value="LightSkyBlue" />
                                     </Trigger>
                                     <Trigger Property="IsSelected" Value="False">
-                                        <Setter TargetName="Border" Property="Background" Value="GhostWhite" />
+                                        <Setter TargetName="Border" Property="Background" Value="transparent" />
                                     </Trigger>
                                 </ControlTemplate.Triggers>
                             </ControlTemplate>
@@ -36,34 +36,86 @@
                     </Setter>
                 </Style>
             </TabControl.Resources>
-            <TabItem Header="Home" >
+            <TabItem>
+                <TabItem.Header>
+                    <Image Width="27" Source="Resources/HomeIconx27.png" />
+                </TabItem.Header>
                 <Grid Background="#FFE5E5E5">
                     <WebBrowser x:Name="eprbrowser"/>
                 </Grid>
             </TabItem>
-            <TabItem Header="Tasks">
+            <TabItem>
+                <TabItem.Header>
+                    <Image Width="27" Source="Resources/CheckIconx27.png" Opacity="0.6"/>
+                </TabItem.Header>
                 <Grid Background="#FFE5E5E5">
-                    <ListView x:Name="TaskStack">
-                    </ListView>
-                </Grid>
-            </TabItem>
-            <TabItem Header="Profile">
-                <Grid Background="#FFE5E5E5"/>
-            </TabItem>
-            <TabItem Header="Planner">
-                <Grid Background="#FFE5E5E5">
-                    <ScrollViewer>
-                        <StackPanel x:Name="PlannerStack"/>
-                    </ScrollViewer>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" MaxWidth="550"/>
+                        <ColumnDefinition Width="auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <ListBox x:Name="TaskStack" MouseDoubleClick="TaskStack_MouseDoubleClick">
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <local:TaskControl MaxWidth="530"/>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+
                 </Grid>
             </TabItem>
             <TabItem>
                 <TabItem.Header>
-                    <Image Width="27"  Source="C:\Users\618262\Pictures\GearSmall.png"/>
+                    <Image Width="27" Source="Resources/UserIconx27.png" />
+                </TabItem.Header>
+                <Grid Background="#FFE5E5E5">
+                    <Image x:Name="UserImage" Width="200" Height="200" HorizontalAlignment="Left" VerticalAlignment="Top" >
+                        <Image.Style>
+                            <Style TargetType="{x:Type Image}">
+                                <Setter Property="Source" Value="Resources/Individualx200.png"/>
+                            </Style>
+                        </Image.Style>
+                    </Image>
+                    <Label x:Name="StatusLabel" Content="Please Login" Margin="0,200,0,0" HorizontalContentAlignment="Right" FontSize="20" Height="37" VerticalAlignment="Top" FontFamily="Segoe UI Historic" HorizontalAlignment="Left"/>
+                    <Label HorizontalAlignment="Right" x:Name="EmailLabel" />
+                    <Label HorizontalAlignment="Right" x:Name="IDLabel" Margin="0,20,0,0" />
+                </Grid>
+            </TabItem>
+            <TabItem>
+                <TabItem.Header>
+                    <Image Width="27" Source="Resources/CalendarIconx27.png" />
+                </TabItem.Header>
+                <Grid Background="#FFE5E5E5">
+                    <ListBox x:Name="PlannerStack">
+                        
+                    </ListBox>
+                </Grid>
+            </TabItem>
+            <TabItem>
+                <TabItem.Header>
+                    <Image Width="27"  Source="Resources/GearSmall.png"/>
                 </TabItem.Header>
                 <Grid Background="#FFE5E5E5"/>
             </TabItem>
+            <TabItem Visibility="Collapsed" x:Name="TaskTab">
+                <Grid>
+                    <Grid DataContext="{Binding ElementName=TaskStack, Path=SelectedItem}">
+                        <Label Content="{Binding title,FallbackValue='Task Title'}"/>
+                        <ListBox Margin="0,40,0,0" HorizontalAlignment="Stretch" ItemsSource="{Binding recipientsResponses[0].responses}">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Label Content="{Binding message}"/>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Grid>
+                </Grid>
+            </TabItem>
         </TabControl>
-        <Label x:Name="StatusLabel" Content="Please Login" Margin="0,0,8,0" HorizontalContentAlignment="Right" FontSize="20" Height="37" VerticalAlignment="Top" FontFamily="Segoe UI Historic" HorizontalAlignment="Right"/>
     </Grid>
 </Window>

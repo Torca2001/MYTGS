@@ -12,7 +12,7 @@
             <RowDefinition x:Name="BottomRow" Height="Auto"/>
         </Grid.RowDefinitions>
         <WebBrowser x:Name="Browser" Navigated="Browser_Navigated"/>
-        <Label x:Name="Status_Label" Content="Trying Log in" Grid.Row="1" HorizontalAlignment="Center" Foreground="White" FontSize="16"/>
+        <Label x:Name="Status_Label" Content="Trying to Login" Grid.Row="1" HorizontalAlignment="Center" Foreground="White" FontSize="16"/>
 
     </Grid>
 </Window>

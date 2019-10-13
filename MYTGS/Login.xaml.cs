@@ -51,6 +51,7 @@ namespace MYTGS
                 //Set variable so closing event doesn't resend result event
                 Success = true;
                 //Create event
+                
                 OnResultEventArgs ev = new OnResultEventArgs();
                 ev.Token = result.Groups[1].Value;
                 ev.Result = true;

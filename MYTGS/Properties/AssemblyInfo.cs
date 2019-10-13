@@ -10,7 +10,7 @@ using System.Windows;
 [assembly: AssemblyTitle("MYTGS")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("")]
+[assembly: AssemblyCompany("Torca")]
 [assembly: AssemblyProduct("MYTGS")]
 [assembly: AssemblyCopyright("Copyright ©  2019")]
 [assembly: AssemblyTrademark("")]

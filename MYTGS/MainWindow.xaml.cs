@@ -24,7 +24,7 @@ namespace MYTGS
         Dictionary<int,Firefly.FullTask> Tasks = new Dictionary<int,Firefly.FullTask>();
         DispatcherTimer TenTimer = new DispatcherTimer();
         TimetableClock ClockWindow = new TimetableClock();
-        
+        System.Windows.Forms.NotifyIcon nIcon = new System.Windows.Forms.NotifyIcon();
 
         public MainWindow()
         {
@@ -38,7 +38,12 @@ namespace MYTGS
             ClockWindow.Left = System.Windows.SystemParameters.WorkArea.Width - ClockWindow.Width;
             ClockWindow.Top = System.Windows.SystemParameters.WorkArea.Height - ClockWindow.Height;
 
+            nIcon.Icon = Properties.Resources.placeholder;
+            nIcon.Visible = true;
+
             LoadCachedTasks();
+            
+
 
             logger.Info("Beginning Login checks");
             FF.OnLogin += FF_OnLogin;
@@ -114,9 +119,10 @@ namespace MYTGS
 
             //TasksPath + "\\" + TaskID + "\\Task.json"
             //Tasks = FF.GetAllTasksByIds(FF.GetAllIds()).Reverse().ToDictionary(pv => pv.id, pv => pv);
+            string EPRstr = FF.EPR();
             Dispatcher.Invoke(() => {
 
-                eprbrowser.NavigateToString("<html><head><meta http-equiv=\"X-UA-Compatible\" content=\"IE=10\"><style>table {width: 100%; border: 1px solid #333; border-collapse: collapse !important;}td {border-right: 1px solid #333; padding: 0.375rem;} tr:not(:last-child) {border-bottom: 1px solid #ccc;}</style></head><body>" + FF.EPR() + "</body></html>");
+                eprbrowser.NavigateToString("<html><head><meta http-equiv=\"X-UA-Compatible\" content=\"IE=10\"><style>table {width: 100%; border: 1px solid #333; border-collapse: collapse !important;}td {border-right: 1px solid #333; padding: 0.375rem;} tr:not(:last-child) {border-bottom: 1px solid #ccc;}</style></head><body>" + EPRstr + "</body></html>");
                 EmailLabel.Content = FF.Email;
                 IDLabel.Content = FF.Username;
                 UserImage.Source = FF.GetUserImage();
@@ -141,13 +147,27 @@ namespace MYTGS
                     PlannerStack.Items.Add(lbl);
                 }));
             }
-            TimetablePeriod[] todayPeriods = Timetablehandler.OverlapCheck(Timetablehandler.FillInTable(Timetablehandler.ParseEventsToPeriods(Timetablehandler.FilterTodayOnly(Events)), DateTime.Now, false));
-            foreach (TimetablePeriod item in todayPeriods)
+            List<TimetablePeriod> todayPeriods = Timetablehandler.ProcessForUse(Events, DateTime.UtcNow, false, true);
+            EPRcollection EPR = EPRHandler.ProcessEPR(EPRstr);
+            DateTime EPRlocalDate = EPR.Date.ToLocalTime();
+            for (int i = 0; i < todayPeriods.Count; i++)
             {
-                Console.WriteLine("Period " + item.period + " Class " + item.Classcode + " Room: " + item.Roomcode + " start: " +item.Start.ToLocalTime() + " End: " +item.End.ToLocalTime());
+                Console.WriteLine("Period " + todayPeriods[i].period + " Class " + todayPeriods[i].Classcode + " Room: " + todayPeriods[i].Roomcode + " start: " + todayPeriods[i].Start.ToLocalTime() + " End: " + todayPeriods[i].End.ToLocalTime());
+                if (EPRlocalDate.Day == DateTime.Now.Day && EPRlocalDate.Month == DateTime.Now.Month && EPRlocalDate.Year == DateTime.Now.Year)
+                {
+                    //Room change
+                    if (EPR.Changes.ContainsKey(todayPeriods[i].Classcode))
+                    {
+                        TimetablePeriod item = todayPeriods[i];
+                        item.Roomcode = EPR.Changes[item.Classcode].Roomcode;
+                        item.Teacher = EPR.Changes[item.Classcode].Teacher;
+                        todayPeriods[i] = item;
+                        nIcon.ShowBalloonTip(10000, "Class Change", item.Classcode + " Room: " + item.Roomcode + " Teacher: " + item.Teacher, System.Windows.Forms.ToolTipIcon.Warning);
+                        Console.WriteLine("Class was changed! Room: " + item.Roomcode + " Teacher: " + item.Teacher);
+                    }
+                }
             }
-            ClockWindow.SetSchedule(todayPeriods.ToList());
-
+            ClockWindow.SetSchedule(todayPeriods);
 
             //Environment.ExpandEnvironmentVariables((string)Properties.Settings.Default["TasksPath"])
         }

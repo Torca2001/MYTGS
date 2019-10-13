@@ -3,7 +3,7 @@
   <Profiles />
   <Settings>
     <Setting Name="TasksPath" Type="System.String" Scope="User">
-      <Value Profile="(Default)">E:\Torca\Documents\MYTGS\MYTGS\bin\Debug\MYTGS\Tasks</Value>
+      <Value Profile="(Default)">%appdata%\MYTGS\Tasks</Value>
     </Setting>
     <Setting Name="LastFetch" Type="System.DateTime" Scope="User">
       <Value Profile="(Default)">2019-04-21</Value>

@@ -104,14 +104,14 @@ namespace MYTGS
                     if (Timetablehandler.CompareInBetween(GotoTime, Schedule[i].Start, DateTime.UtcNow))
                     {
                         Countdown = Schedule[i].Start.TimeOfDay - DateTime.UtcNow.TimeOfDay;
-                        LabelDesc = "Go to " + Schedule[i].Classcode;
+                        LabelDesc = "Go to " + AutoDesc(Schedule[i]);
                         LabelRoom = Schedule[i].Roomcode;
                         break;
                     }
                     else if (Timetablehandler.CompareInBetween(Schedule[i].Start, Schedule[i].End, DateTime.UtcNow))
                     {
                         Countdown = Schedule[i].End.TimeOfDay - DateTime.UtcNow.TimeOfDay;
-                        LabelDesc = Schedule[i].Classcode;
+                        LabelDesc = AutoDesc(Schedule[i]);
                         LabelRoom = Schedule[i].Roomcode;
                         break;
                     }
@@ -119,11 +119,19 @@ namespace MYTGS
                 else if (Timetablehandler.CompareInBetween(Schedule[i].Start, Schedule[i].End, DateTime.UtcNow))
                 {
                     Countdown = Schedule[i].End.TimeOfDay - DateTime.UtcNow.TimeOfDay;
-                    LabelDesc = Schedule[i].Classcode;
+                    LabelDesc = AutoDesc(Schedule[i]);
                     LabelRoom = Schedule[i].Roomcode;
                     break;
                 }
             }
         }
+
+        private string AutoDesc(TimetablePeriod period)
+        {
+            return period.Description.Length < 13 ? period.Description : period.Classcode;
+        }
+
+
+
     }
 }

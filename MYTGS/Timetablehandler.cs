@@ -131,7 +131,7 @@ namespace MYTGS
                     periods = FillInTable(periods, day, EarlyFinish);
                     Array.Resize(ref periods, 9);
                     periods[7] = new TimetablePeriod(DateTimespan(day, RecessPeriods[position].Start), DateTimespan(day, RecessPeriods[position].End), RecessPeriods[position].description, "Break", "", false, 7);
-                    periods[8] = new TimetablePeriod(DateTimespan(day, LunchPeriods[position].Start), DateTimespan(day, LunchPeriods[position].End), RecessPeriods[position].description, "Break", "", false, 8);
+                    periods[8] = new TimetablePeriod(DateTimespan(day, LunchPeriods[position].Start), DateTimespan(day, LunchPeriods[position].End), LunchPeriods[position].description, "Break", "", false, 8);
                     periods = OverlapCheck(periods);
                     return periods.ToList();
                 }
@@ -145,7 +145,7 @@ namespace MYTGS
                     periods = FillInTable(periods, day, EarlyFinish);
                     Array.Resize(ref periods, 9);
                     periods[7] = new TimetablePeriod(DateTimespan(day, RecessPeriods[position].Start), DateTimespan(day, RecessPeriods[position].End), RecessPeriods[position].description, "Break", "", false, 7);
-                    periods[8] = new TimetablePeriod(DateTimespan(day, LunchPeriods[position].Start), DateTimespan(day, LunchPeriods[position].End), RecessPeriods[position].description, "Break", "", false, 8);
+                    periods[8] = new TimetablePeriod(DateTimespan(day, LunchPeriods[position].Start), DateTimespan(day, LunchPeriods[position].End), LunchPeriods[position].description, "Break", "", false, 8);
                     periods = OverlapCheck(periods);
                     return periods.ToList();
                 }

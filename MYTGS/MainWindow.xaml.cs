@@ -156,7 +156,7 @@ namespace MYTGS
                 if (EPRlocalDate.Day == DateTime.Now.Day && EPRlocalDate.Month == DateTime.Now.Month && EPRlocalDate.Year == DateTime.Now.Year)
                 {
                     //Room change
-                    if (EPR.Changes.ContainsKey(todayPeriods[i].Classcode))
+                    if (EPR.Changes.ContainsKey(todayPeriods[i].Classcode + "-" + todayPeriods[i].period))
                     {
                         TimetablePeriod item = todayPeriods[i];
                         item.Roomcode = EPR.Changes[item.Classcode].Roomcode;

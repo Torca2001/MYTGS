@@ -104,14 +104,14 @@ namespace MYTGS
                     DateTime GotoTime = Schedule[i].Start.AddMinutes(-5);
                     if (Timetablehandler.CompareInBetween(GotoTime, Schedule[i].Start, DateTime.UtcNow))
                     {
-                        Countdown = Schedule[i].Start.TimeOfDay - DateTime.UtcNow.TimeOfDay;
+                        Countdown = Schedule[i].Start.ToLocalTime() - DateTime.Now;
                         LabelDesc = "Go to " + AutoDesc(Schedule[i]);
                         LabelRoom = Schedule[i].Roomcode;
                         break;
                     }
                     else if (Timetablehandler.CompareInBetween(Schedule[i].Start, Schedule[i].End, DateTime.UtcNow))
                     {
-                        Countdown = Schedule[i].End.TimeOfDay - DateTime.UtcNow.TimeOfDay;
+                        Countdown = Schedule[i].End.ToLocalTime() - DateTime.Now;
                         LabelDesc = AutoDesc(Schedule[i]);
                         LabelRoom = Schedule[i].Roomcode;
                         break;
@@ -119,7 +119,7 @@ namespace MYTGS
                 }
                 else if (Timetablehandler.CompareInBetween(Schedule[i].Start, Schedule[i].End, DateTime.UtcNow))
                 {
-                    Countdown = Schedule[i].End.TimeOfDay - DateTime.UtcNow.TimeOfDay;
+                    Countdown = Schedule[i].End.ToLocalTime() - DateTime.Now;
                     LabelDesc = AutoDesc(Schedule[i]);
                     LabelRoom = Schedule[i].Roomcode;
                     break;

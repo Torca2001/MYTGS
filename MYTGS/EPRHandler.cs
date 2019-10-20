@@ -48,7 +48,7 @@ namespace MYTGS
                         try
                         {
                             MatchCollection columns = Regex.Matches(Rows[i].Value, @"<[^\/]*>\s*([\s\S]*?)\s*?<\/", RegexOptions.IgnoreCase);
-                            if (string.IsNullOrWhiteSpace(columns[2].Groups[1].Value))
+                            if (string.IsNullOrWhiteSpace(columns[2].Groups[1].Value) || EPR.Changes.ContainsKey(columns[2].Groups[1].Value + "-" + Convert.ToInt32(columns[0].Groups[1].Value)))
                                 continue;
                             TimetablePeriod period = new TimetablePeriod()
                             {
@@ -57,7 +57,7 @@ namespace MYTGS
                                 Teacher = columns[3].Groups[1].Value,
                                 Roomcode = columns[5].Groups[1].Value
                             };
-                            EPR.Changes.Add(period.Classcode, period);
+                            EPR.Changes.Add(period.Classcode + "-" + period.period, period);
                         }
                         catch
                         {
@@ -78,11 +78,11 @@ namespace MYTGS
                             MatchCollection columns = Regex.Matches(Rows[i].Value, @"<[^\/]*>\s*([\s\S]*?)\s*?<\/", RegexOptions.IgnoreCase);
                             if (string.IsNullOrWhiteSpace(columns[2].Groups[1].Value))
                                 continue;
-                            if (EPR.Changes.ContainsKey(columns[2].Groups[1].Value))
+                            if (EPR.Changes.ContainsKey(columns[2].Groups[1].Value + "-" + Convert.ToInt16(columns[0].Groups[1].Value)))
                             {
-                                TimetablePeriod roomchangeditem = EPR.Changes[columns[2].Groups[1].Value];
+                                TimetablePeriod roomchangeditem = EPR.Changes[columns[2].Groups[1].Value + "-" + Convert.ToInt16(columns[0].Groups[1].Value)];
                                 roomchangeditem.Teacher = columns[5].Groups[1].Value;
-                                EPR.Changes[columns[2].Groups[1].Value] = roomchangeditem;
+                                EPR.Changes[columns[2].Groups[1].Value + "-" + Convert.ToInt16(columns[0].Groups[1].Value)] = roomchangeditem;
                             }
                             else
                             {
@@ -93,7 +93,7 @@ namespace MYTGS
                                     Teacher = columns[5].Groups[1].Value,
                                     Roomcode = columns[1].Groups[1].Value
                                 };
-                                EPR.Changes.Add(period.Classcode, period);
+                                EPR.Changes.Add(period.Classcode + "-" + period.period, period);
                             }
                         }
                         catch

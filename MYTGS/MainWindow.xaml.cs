@@ -10,6 +10,7 @@ using System.Windows.Controls;
 using Newtonsoft.Json;
 using NLog;
 using System.Windows.Media;
+using Microsoft.Win32;
 
 namespace MYTGS
 {
@@ -52,11 +53,12 @@ namespace MYTGS
                 FF.LoginUI();
             }
             TenTimer.Start();
-
             
-
+            StartupCheckBox.IsChecked = IsApplicationInStartup();
+            StartupCheckBox.Checked += StartupCheckBox_Checked;
 
         }
+
 
         private void LoadCachedTasks()
         {
@@ -204,6 +206,36 @@ namespace MYTGS
             //return newly added items
             return NewIDs.ToArray();
         }
+        
+        //Registry edits that don't require admin
+        public static void AddApplicationToStartup()
+        {
+            using (RegistryKey key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true))
+            {
+                key.SetValue("MYTGS App", "\"" + System.Reflection.Assembly.GetExecutingAssembly().Location + "\"");
+            }
+        }
+
+        public static void RemoveApplicationFromStartup()
+        {
+            using (RegistryKey key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true))
+            {
+                key.DeleteValue("MYTGS App", false);
+            }
+        }
+
+        public static bool IsApplicationInStartup()
+        {
+            using (RegistryKey key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true))
+            {
+                object k = key.GetValue("MYTGS App");
+                if (k != null && (string)k == "\"" + System.Reflection.Assembly.GetExecutingAssembly().Location + "\"")
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
 
         private void SaveTask(string FilePath, Firefly.FullTask task)
         {
@@ -227,6 +259,15 @@ namespace MYTGS
         {
             ClockWindow?.Close();
         }
-        
+
+        private void StartupCheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            AddApplicationToStartup();
+        }
+
+        private void StartupCheckBox_Unchecked(object sender, RoutedEventArgs e)
+        {
+            RemoveApplicationFromStartup();
+        }
     }
 }

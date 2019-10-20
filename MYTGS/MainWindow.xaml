@@ -101,7 +101,24 @@
                 <TabItem.Header>
                     <Image Width="27"  Source="Resources/GearSmall.png"/>
                 </TabItem.Header>
-                <Grid Background="#FFE5E5E5"/>
+                <Grid Background="#FFE5E5E5">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150px"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="50px"/>
+                        <RowDefinition Height="50px"/>
+                        <RowDefinition Height="50px"/>
+                        <RowDefinition Height="50px"/>
+                        <RowDefinition Height="50px"/>
+                        <RowDefinition Height="50px"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Label Content="Run on Startup" FontSize="16" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                    <CheckBox x:Name="StartupCheckBox" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="50,0,0,0" Unchecked="StartupCheckBox_Unchecked" />
+                </Grid>
+                    
             </TabItem>
             <TabItem Visibility="Collapsed" x:Name="TaskTab">
                 <Grid>

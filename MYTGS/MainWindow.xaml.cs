@@ -161,8 +161,8 @@ namespace MYTGS
                     if (EPR.Changes.ContainsKey(todayPeriods[i].Classcode + "-" + todayPeriods[i].period))
                     {
                         TimetablePeriod item = todayPeriods[i];
-                        item.Roomcode = EPR.Changes[item.Classcode].Roomcode;
-                        item.Teacher = EPR.Changes[item.Classcode].Teacher;
+                        item.Roomcode = EPR.Changes[item.Classcode + "-" + todayPeriods[i].period].Roomcode;
+                        item.Teacher = EPR.Changes[item.Classcode + "-" + todayPeriods[i].period].Teacher;
                         todayPeriods[i] = item;
                         nIcon.ShowBalloonTip(10000, "Class Change", item.Classcode + " Room: " + item.Roomcode + " Teacher: " + item.Teacher, System.Windows.Forms.ToolTipIcon.Warning);
                         Console.WriteLine("Class was changed! Room: " + item.Roomcode + " Teacher: " + item.Teacher);

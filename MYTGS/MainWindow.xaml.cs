@@ -26,6 +26,8 @@ namespace MYTGS
         DispatcherTimer TenTimer = new DispatcherTimer();
         TimetableClock ClockWindow = new TimetableClock();
         System.Windows.Forms.NotifyIcon nIcon = new System.Windows.Forms.NotifyIcon();
+        System.Windows.Forms.ContextMenu menu = new System.Windows.Forms.ContextMenu();
+        bool safeclose = false;
 
         public MainWindow()
         {
@@ -39,6 +41,10 @@ namespace MYTGS
             ClockWindow.Left = System.Windows.SystemParameters.WorkArea.Width - ClockWindow.Width;
             ClockWindow.Top = System.Windows.SystemParameters.WorkArea.Height - ClockWindow.Height;
 
+            menu.MenuItems.Add("Home", new EventHandler(HomeMenu_Click));
+            menu.MenuItems.Add("Quit", new EventHandler(QuitMenu_Click));
+
+            nIcon.ContextMenu = menu;
             nIcon.Icon = Properties.Resources.placeholder;
             nIcon.Visible = true;
 
@@ -237,6 +243,19 @@ namespace MYTGS
             return false;
         }
 
+        private void QuitMenu_Click(object sender, EventArgs e)
+        {
+            safeclose = true;
+            Application.Current.Shutdown();
+        }
+
+        private void HomeMenu_Click(object sender, EventArgs e)
+        {
+            ShowInTaskbar = true;
+            WindowState = WindowState.Normal;
+            Activate();
+        }
+
         private void SaveTask(string FilePath, Firefly.FullTask task)
         {
             try
@@ -244,7 +263,7 @@ namespace MYTGS
                 Directory.CreateDirectory(FilePath.Substring(0,FilePath.LastIndexOf("\\"))); //Creates the required directories 
                 File.WriteAllText(FilePath, JsonConvert.SerializeObject(task, Formatting.Indented));
             }
-            catch(Exception e)
+            catch
             {
                 logger.Warn("Unable to save task - " + task.id);
             }
@@ -257,6 +276,13 @@ namespace MYTGS
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
+            if (safeclose == false)
+            {
+                e.Cancel = true;
+                WindowState = WindowState.Minimized;
+                ShowInTaskbar = false;
+                return;
+            }
             ClockWindow?.Close();
         }
 

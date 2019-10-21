@@ -70,7 +70,6 @@ namespace MYTGS
 
         public TimetableClock()
         {
-            
             InitializeComponent();
             this.DataContext = this;
 

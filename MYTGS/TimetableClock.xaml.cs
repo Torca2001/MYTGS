@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
@@ -9,7 +10,9 @@ using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using System.Windows.Threading;
@@ -154,27 +157,95 @@ namespace MYTGS
         //This is required as stuttering will occur if you make the object disappear as it will forget its previous size
         private void Grid_MouseEnter(object sender, MouseEventArgs e)
         {
-            double Current_Width = ((Grid)sender).ActualWidth;
-            double Current_Height = ((Grid)sender).ActualHeight;
+            double Current_Width = ContentGrid.ActualWidth;
+            double Current_Height = ContentGrid.ActualHeight;
             Point Pos = this.PointToScreen(new Point(Width-Current_Width, Height-Current_Height));
             DispatcherTimer Checker = new DispatcherTimer();
             Checker.Interval = TimeSpan.FromMilliseconds(10);
-            WindowState = WindowState.Minimized;
+            FadeOutWindow();
             //Loop to check if mouse leaves
             Checker.Tick += (s, eargs) =>
             {
+                //Cast it to an easier to reference object
                 System.Drawing.Point mousepoint = System.Windows.Forms.Control.MousePosition;
+                //Check if it is out of the bounds of the previous rectangle
                 if (mousepoint.X < Pos.X ||
                     mousepoint.Y < Pos.Y ||
                     mousepoint.X > Pos.X + Current_Width ||
                     mousepoint.Y > Pos.Y + Current_Height
                 )
                 {
+                    //Stop the checking timer and resume visiblity 
                     Checker.Stop();
-                    WindowState = WindowState.Normal;
+                    FadeInWindow();
                 }
             };
             Checker.Start();
         }
+
+        //shared
+        Storyboard storyboard;
+
+        private void FadeInWindow()
+        {
+            if (storyboard != null)
+            {
+                storyboard.Stop();
+            }
+
+            // Create a storyboard to contain the animations.
+            storyboard = new Storyboard();
+            TimeSpan duration = TimeSpan.FromMilliseconds(100);
+
+            // Create a DoubleAnimation to fade the not selected option control
+            DoubleAnimation animation = new DoubleAnimation();
+
+            animation.From = 0.0;
+            animation.To = 1.0;
+            animation.Duration = new Duration(duration);
+            // Configure the animation to target de property Opacity
+            Storyboard.SetTargetName(animation, ContentGrid.Name);
+            Storyboard.SetTargetProperty(animation, new PropertyPath(Control.OpacityProperty));
+            // Add the animation to the storyboard
+            storyboard.Children.Add(animation);
+            storyboard.Completed += Storyboard_Completed;
+            // Begin the storyboard
+            storyboard.Begin(this);
+        }
+
+        private void Storyboard_Completed(object sender, EventArgs e)
+        {
+            storyboard = null;
+        }
+
+        private void FadeOutWindow()
+        {
+
+            if (storyboard != null)
+            {
+                storyboard.Stop();
+            }
+
+            // Create a storyboard to contain the animations.
+            storyboard = new Storyboard();
+            TimeSpan duration = TimeSpan.FromMilliseconds(100);
+
+            // Create a DoubleAnimation to fade the not selected option control
+            DoubleAnimation animation = new DoubleAnimation();
+
+            animation.From = 1.0;
+            animation.To = 0.0;
+            animation.Duration = new Duration(duration);
+            // Configure the animation to target de property Opacity
+            Storyboard.SetTargetName(animation, ContentGrid.Name);
+            Storyboard.SetTargetProperty(animation, new PropertyPath(Control.OpacityProperty));
+            // Add the animation to the storyboard
+            storyboard.Children.Add(animation);
+            storyboard.Completed += Storyboard_Completed;
+
+            // Begin the storyboard
+            storyboard.Begin(this);
+        }
+        
     }
 }

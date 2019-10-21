@@ -252,7 +252,7 @@ namespace MYTGS
         private void HomeMenu_Click(object sender, EventArgs e)
         {
             ShowInTaskbar = true;
-            WindowState = WindowState.Normal;
+            Show();
             Activate();
         }
 
@@ -279,7 +279,7 @@ namespace MYTGS
             if (safeclose == false)
             {
                 e.Cancel = true;
-                WindowState = WindowState.Minimized;
+                Hide();
                 ShowInTaskbar = false;
                 return;
             }

@@ -7,7 +7,7 @@
         mc:Ignorable="d"
         Title="TimetableClock" ShowInTaskbar="False" Topmost="True" WindowStartupLocation="CenterScreen" ResizeMode="NoResize" WindowStyle="None" AllowsTransparency="True" Width="400" Height="400">
 
-    <Grid MouseEnter="Grid_MouseEnter" VerticalAlignment="Bottom" HorizontalAlignment="Right">
+    <Grid x:Name="ContentGrid" MouseEnter="Grid_MouseEnter" VerticalAlignment="Bottom" HorizontalAlignment="Right">
         <ContentControl x:Name="ContentCtrl"/>
         <local:DefaultClock x:Name="DefClock" VerticalAlignment="Bottom" HorizontalAlignment="Right">
             <local:DefaultClock.Style>

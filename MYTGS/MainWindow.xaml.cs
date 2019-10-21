@@ -47,10 +47,10 @@ namespace MYTGS
 
             nIcon.ContextMenu = menu;
             nIcon.Icon = Properties.Resources.placeholder;
+            nIcon.DoubleClick += HomeMenu_Click;
             nIcon.Visible = true;
 
             LoadCachedTasks();
-            
 
 
             logger.Info("Beginning Login checks");
@@ -109,7 +109,7 @@ namespace MYTGS
                 Directory.CreateDirectory(TasksPath);
             if (TasksPath[TasksPath.Length - 1] != '\\' || TasksPath[TasksPath.Length - 1] != '/')
                 TasksPath += "\\";
-            UpdateTasks(TasksPath);
+            //UpdateTasks(TasksPath);
             
         }
 

@@ -31,6 +31,7 @@ namespace MYTGS
 
         public MainWindow()
         {
+            Application.Current.SessionEnding += Current_SessionEnding;
             // 10 minutes in milliseconds
             TenTimer.Interval = TimeSpan.FromMinutes(10);
             TenTimer.Tick += TenTimer_Tick;
@@ -65,6 +66,11 @@ namespace MYTGS
 
         }
 
+        private void Current_SessionEnding(object sender, SessionEndingCancelEventArgs e)
+        {
+            safeclose = true;
+            ClockWindow?.Close();
+        }
 
         private void LoadCachedTasks()
         {
@@ -276,6 +282,7 @@ namespace MYTGS
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
+            // Check if closing by the menu or system shutdown
             if (safeclose == false)
             {
                 e.Cancel = true;

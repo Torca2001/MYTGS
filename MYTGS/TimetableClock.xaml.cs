@@ -183,7 +183,7 @@ namespace MYTGS
             Checker.Start();
         }
 
-        //shared
+        //shared storyboard to prevent fighting of multiple storyboards that are incompleted
         Storyboard storyboard;
 
         private void FadeInWindow()

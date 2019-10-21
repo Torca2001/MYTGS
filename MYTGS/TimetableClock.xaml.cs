@@ -150,6 +150,31 @@ namespace MYTGS
         {
             return period.Description.Length < 13 ? period.Description : period.Classcode;
         }
-        
+
+        //This is required as stuttering will occur if you make the object disappear as it will forget its previous size
+        private void Grid_MouseEnter(object sender, MouseEventArgs e)
+        {
+            double Current_Width = ((Grid)sender).ActualWidth;
+            double Current_Height = ((Grid)sender).ActualHeight;
+            Point Pos = this.PointToScreen(new Point(Width-Current_Width, Height-Current_Height));
+            DispatcherTimer Checker = new DispatcherTimer();
+            Checker.Interval = TimeSpan.FromMilliseconds(10);
+            WindowState = WindowState.Minimized;
+            //Loop to check if mouse leaves
+            Checker.Tick += (s, eargs) =>
+            {
+                System.Drawing.Point mousepoint = System.Windows.Forms.Control.MousePosition;
+                if (mousepoint.X < Pos.X ||
+                    mousepoint.Y < Pos.Y ||
+                    mousepoint.X > Pos.X + Current_Width ||
+                    mousepoint.Y > Pos.Y + Current_Height
+                )
+                {
+                    Checker.Stop();
+                    WindowState = WindowState.Normal;
+                }
+            };
+            Checker.Start();
+        }
     }
 }

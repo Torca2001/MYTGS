@@ -5,9 +5,9 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:MYTGS"
         mc:Ignorable="d"
-        Title="TimetableClock" ShowInTaskbar="False" Topmost="True" WindowStartupLocation="CenterScreen" ResizeMode="NoResize" WindowStyle="None" AllowsTransparency="True" Background="White" Width="400" Height="400">
+        Title="TimetableClock" ShowInTaskbar="False" Topmost="True" WindowStartupLocation="CenterScreen" ResizeMode="NoResize" WindowStyle="None" AllowsTransparency="True" Width="400" Height="400">
 
-    <Grid>
+    <Grid MouseEnter="Grid_MouseEnter" VerticalAlignment="Bottom" HorizontalAlignment="Right">
         <ContentControl x:Name="ContentCtrl"/>
         <local:DefaultClock x:Name="DefClock" VerticalAlignment="Bottom" HorizontalAlignment="Right">
             <local:DefaultClock.Style>

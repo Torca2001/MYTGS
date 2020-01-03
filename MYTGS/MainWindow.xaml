@@ -117,6 +117,8 @@
                     </Grid.RowDefinitions>
                     <Label Content="Run on Startup" FontSize="16" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                     <CheckBox x:Name="StartupCheckBox" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="50,0,0,0" Unchecked="StartupCheckBox_Unchecked" />
+                    <Label Content="Offset" Grid.Row="1" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                    <TextBox Grid.Column="1" Grid.Row="1" Width="100" Height="40" HorizontalAlignment="Left"/>
                 </Grid>
                     
             </TabItem>

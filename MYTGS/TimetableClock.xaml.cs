@@ -25,6 +25,7 @@ namespace MYTGS
     public partial class TimetableClock : Window , INotifyPropertyChanged
     {
         public List<TimetablePeriod> Schedule = new List<TimetablePeriod>();
+        public bool FadeOnHover = true;
 
         public TimeSpan Countdown
         {
@@ -157,30 +158,33 @@ namespace MYTGS
         //This is required as stuttering will occur if you make the object disappear as it will forget its previous size
         private void Grid_MouseEnter(object sender, MouseEventArgs e)
         {
-            double Current_Width = ContentGrid.ActualWidth;
-            double Current_Height = ContentGrid.ActualHeight;
-            Point Pos = this.PointToScreen(new Point(Width-Current_Width, Height-Current_Height));
-            DispatcherTimer Checker = new DispatcherTimer();
-            Checker.Interval = TimeSpan.FromMilliseconds(10);
-            FadeOutWindow();
-            //Loop to check if mouse leaves
-            Checker.Tick += (s, eargs) =>
+            if ( FadeOnHover)
             {
-                //Cast it to an easier to reference object
-                System.Drawing.Point mousepoint = System.Windows.Forms.Control.MousePosition;
-                //Check if it is out of the bounds of the previous rectangle
-                if (mousepoint.X < Pos.X ||
-                    mousepoint.Y < Pos.Y ||
-                    mousepoint.X > Pos.X + Current_Width ||
-                    mousepoint.Y > Pos.Y + Current_Height
-                )
+                double Current_Width = ContentGrid.ActualWidth;
+                double Current_Height = ContentGrid.ActualHeight;
+                Point Pos = this.PointToScreen(new Point(Width - Current_Width, Height - Current_Height));
+                DispatcherTimer Checker = new DispatcherTimer();
+                Checker.Interval = TimeSpan.FromMilliseconds(10);
+                FadeOutWindow();
+                //Loop to check if mouse leaves
+                Checker.Tick += (s, eargs) =>
                 {
-                    //Stop the checking timer and resume visiblity 
-                    Checker.Stop();
-                    FadeInWindow();
-                }
-            };
-            Checker.Start();
+                    //Cast it to an easier to reference object
+                    System.Drawing.Point mousepoint = System.Windows.Forms.Control.MousePosition;
+                    //Check if it is out of the bounds of the previous rectangle
+                    if (mousepoint.X < Pos.X ||
+                        mousepoint.Y < Pos.Y ||
+                        mousepoint.X > Pos.X + Current_Width ||
+                        mousepoint.Y > Pos.Y + Current_Height
+                    )
+                    {
+                        //Stop the checking timer and resume visiblity 
+                        Checker.Stop();
+                        FadeInWindow();
+                    }
+                };
+                Checker.Start();
+            }
         }
 
         //shared storyboard to prevent fighting of multiple storyboards that are incompleted

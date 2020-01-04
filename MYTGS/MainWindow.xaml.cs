@@ -11,6 +11,7 @@ using Newtonsoft.Json;
 using NLog;
 using System.Windows.Media;
 using Microsoft.Win32;
+using System.Windows.Input;
 
 namespace MYTGS
 {
@@ -43,14 +44,15 @@ namespace MYTGS
             ClockWindow.Top = System.Windows.SystemParameters.WorkArea.Height - ClockWindow.Height;
 
             menu.MenuItems.Add("Home", new EventHandler(HomeMenu_Click));
+            menu.MenuItems.Add("Move", new EventHandler(MoveMenu_Click));
             menu.MenuItems.Add("Quit", new EventHandler(QuitMenu_Click));
 
             nIcon.ContextMenu = menu;
             nIcon.Icon = Properties.Resources.placeholder;
+            nIcon.DoubleClick += HomeMenu_Click;
             nIcon.Visible = true;
 
             LoadCachedTasks();
-            
 
 
             logger.Info("Beginning Login checks");
@@ -109,7 +111,7 @@ namespace MYTGS
                 Directory.CreateDirectory(TasksPath);
             if (TasksPath[TasksPath.Length - 1] != '\\' || TasksPath[TasksPath.Length - 1] != '/')
                 TasksPath += "\\";
-            UpdateTasks(TasksPath);
+            //UpdateTasks(TasksPath);
             
         }
 
@@ -260,6 +262,23 @@ namespace MYTGS
             ShowInTaskbar = true;
             Show();
             Activate();
+        }
+
+        private void MoveMenu_Click(object sender, EventArgs e)
+        {
+            ClockWindow.FadeOnHover = false;
+            ClockWindow.MouseDown -= MoveClockWindow;
+            ClockWindow.MouseDown += MoveClockWindow;
+        }
+
+        private void MoveClockWindow(object sender, MouseButtonEventArgs e)
+        {
+            if (e.LeftButton == MouseButtonState.Pressed)
+            {
+                ClockWindow.DragMove();
+            }
+            ClockWindow.FadeOnHover = true;
+            ClockWindow.MouseDown -= MoveClockWindow;
         }
 
         private void SaveTask(string FilePath, Firefly.FullTask task)

@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:MYTGS"
         mc:Ignorable="d"
-        Title="TimetableClock" ShowInTaskbar="False" Topmost="True" WindowStartupLocation="CenterScreen" ResizeMode="NoResize" WindowStyle="None" AllowsTransparency="True" Width="400" Height="400">
+        Title="TimetableClock" ShowInTaskbar="False" Topmost="True" WindowStartupLocation="CenterScreen" ResizeMode="NoResize" WindowStyle="None" AllowsTransparency="True" Width="400" Height="400" Loaded="Window_Loaded">
 
     <Grid x:Name="ContentGrid" MouseEnter="Grid_MouseEnter" VerticalAlignment="Bottom" HorizontalAlignment="Right" MouseDown="ContentGrid_MouseDown">
         <ContentControl x:Name="ContentCtrl"/>

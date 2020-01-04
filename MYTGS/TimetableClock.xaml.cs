@@ -25,6 +25,8 @@ namespace MYTGS
     public partial class TimetableClock : Window , INotifyPropertyChanged
     {
         private List<TimetablePeriod> schedule = new List<TimetablePeriod>();
+        public List<TimetablePeriod> Schedule = new List<TimetablePeriod>();
+        public bool FadeOnHover = true;
 
         public TimeSpan Countdown
         {
@@ -174,30 +176,33 @@ namespace MYTGS
         //This is required as stuttering will occur if you make the object disappear as it will forget its previous size
         private void Grid_MouseEnter(object sender, MouseEventArgs e)
         {
-            double Current_Width = ContentGrid.ActualWidth;
-            double Current_Height = ContentGrid.ActualHeight;
-            Point Pos = this.PointToScreen(new Point(Width-Current_Width, Height-Current_Height));
-            DispatcherTimer Checker = new DispatcherTimer();
-            Checker.Interval = TimeSpan.FromMilliseconds(10);
-            FadeOutWindow();
-            //Loop to check if mouse leaves
-            Checker.Tick += (s, eargs) =>
+            if ( FadeOnHover)
             {
-                //Cast it to an easier to reference object
-                System.Drawing.Point mousepoint = System.Windows.Forms.Control.MousePosition;
-                //Check if it is out of the bounds of the previous rectangle
-                if (mousepoint.X < Pos.X ||
-                    mousepoint.Y < Pos.Y ||
-                    mousepoint.X > Pos.X + Current_Width ||
-                    mousepoint.Y > Pos.Y + Current_Height
-                )
+                double Current_Width = ContentGrid.ActualWidth;
+                double Current_Height = ContentGrid.ActualHeight;
+                Point Pos = this.PointToScreen(new Point(Width - Current_Width, Height - Current_Height));
+                DispatcherTimer Checker = new DispatcherTimer();
+                Checker.Interval = TimeSpan.FromMilliseconds(10);
+                FadeOutWindow();
+                //Loop to check if mouse leaves
+                Checker.Tick += (s, eargs) =>
                 {
-                    //Stop the checking timer and resume visiblity 
-                    Checker.Stop();
-                    FadeInWindow();
-                }
-            };
-            Checker.Start();
+                    //Cast it to an easier to reference object
+                    System.Drawing.Point mousepoint = System.Windows.Forms.Control.MousePosition;
+                    //Check if it is out of the bounds of the previous rectangle
+                    if (mousepoint.X < Pos.X ||
+                        mousepoint.Y < Pos.Y ||
+                        mousepoint.X > Pos.X + Current_Width ||
+                        mousepoint.Y > Pos.Y + Current_Height
+                    )
+                    {
+                        //Stop the checking timer and resume visiblity 
+                        Checker.Stop();
+                        FadeInWindow();
+                    }
+                };
+                Checker.Start();
+            }
         }
 
         //shared storyboard to prevent fighting of multiple storyboards that are incompleted
@@ -262,6 +267,21 @@ namespace MYTGS
 
             // Begin the storyboard
             storyboard.Begin(this);
+        }
+
+        [DllImport("user32.dll", SetLastError = true)]
+        static extern int GetWindowLong(IntPtr hWnd, int nIndex);
+        [DllImport("user32.dll")]
+        static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
+        private const int GWL_EX_STYLE = -20;
+        private const int WS_EX_APPWINDOW = 0x00040000, WS_EX_TOOLWINDOW = 0x00000080;
+
+        private void Window_Loaded(object sender, RoutedEventArgs e)
+        {
+            //Variable to hold the handle for the form
+            var helper = new WindowInteropHelper(this).Handle;
+            //Performing some magic to hide the form from Alt+Tab
+            SetWindowLong(helper, GWL_EX_STYLE, (GetWindowLong(helper, GWL_EX_STYLE) | WS_EX_TOOLWINDOW) & ~WS_EX_APPWINDOW);
         }
 
         private void ContentGrid_MouseDown(object sender, MouseButtonEventArgs e)

@@ -25,7 +25,6 @@ namespace MYTGS
     public partial class TimetableClock : Window , INotifyPropertyChanged
     {
         private List<TimetablePeriod> schedule = new List<TimetablePeriod>();
-        public List<TimetablePeriod> Schedule = new List<TimetablePeriod>();
         public bool FadeOnHover = true;
 
         public TimeSpan Countdown

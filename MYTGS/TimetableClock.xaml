@@ -7,7 +7,7 @@
         mc:Ignorable="d"
         Title="TimetableClock" ShowInTaskbar="False" Topmost="True" WindowStartupLocation="CenterScreen" ResizeMode="NoResize" WindowStyle="None" AllowsTransparency="True" Width="400" Height="400">
 
-    <Grid x:Name="ContentGrid" MouseEnter="Grid_MouseEnter" VerticalAlignment="Bottom" HorizontalAlignment="Right">
+    <Grid x:Name="ContentGrid" MouseEnter="Grid_MouseEnter" VerticalAlignment="Bottom" HorizontalAlignment="Right" MouseDown="ContentGrid_MouseDown">
         <ContentControl x:Name="ContentCtrl"/>
         <local:DefaultClock x:Name="DefClock" VerticalAlignment="Bottom" HorizontalAlignment="Right">
             <local:DefaultClock.Style>
@@ -21,5 +21,35 @@
                 </Style>
             </local:DefaultClock.Style>
         </local:DefaultClock>
+        <Grid Height="250" Margin="0,0,0,60">
+            <Grid.Style>
+                <Style TargetType="{x:Type Grid}">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding ShowTable}" Value="True">
+                            <Setter Property="Visibility" Value="Visible"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Grid.Style>
+            <ListView ItemsSource="{Binding Schedule}">
+                <ListView.ItemTemplate>
+                    <DataTemplate>
+                        <Grid Height="50" HorizontalAlignment="Stretch">
+                            <Label Content="{Binding Path=Classcode}" HorizontalAlignment="Left"/>
+                            <Label Content="{Binding Path=Roomcode}" HorizontalAlignment="Right"/>
+                        </Grid>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+                <ListView.ItemContainerStyle>
+                    <Style TargetType="ListViewItem">
+                        <Setter Property="Padding" Value="0"/>
+                        <Setter Property="Margin" Value="0"/>
+                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                        <Setter Property="Height" Value="27"/>
+                    </Style>
+                </ListView.ItemContainerStyle>
+            </ListView>
+        </Grid>
     </Grid>
 </Window>

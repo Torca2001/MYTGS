@@ -24,7 +24,7 @@ namespace MYTGS
     /// </summary>
     public partial class TimetableClock : Window , INotifyPropertyChanged
     {
-        public List<TimetablePeriod> Schedule = new List<TimetablePeriod>();
+        private List<TimetablePeriod> schedule = new List<TimetablePeriod>();
 
         public TimeSpan Countdown
         {
@@ -61,6 +61,22 @@ namespace MYTGS
             }
         }
 
+        public bool ShowTable { get => showTable; set
+            {
+                showTable = value;
+                if (PropertyChanged != null)
+                    PropertyChanged(this, new PropertyChangedEventArgs("ShowTable"));
+            }
+        }
+
+        public List<TimetablePeriod> Schedule { get => schedule; set
+            {
+                schedule = value;
+                if (PropertyChanged != null)
+                    PropertyChanged(this, new PropertyChangedEventArgs("Schedule"));
+            }
+        }
+
         private string labelRoom;
 
         private TimeSpan countdown = new TimeSpan(0, 0, 0);
@@ -69,15 +85,16 @@ namespace MYTGS
 
         DispatcherTimer SecTimer = new DispatcherTimer();
 
+        private bool showTable;
         public event PropertyChangedEventHandler PropertyChanged;
 
         public TimetableClock()
         {
             InitializeComponent();
             this.DataContext = this;
+            ShowTable = true;
 
             //ContentCtrl.Content = new Button();
-
             SecTimer.Interval = TimeSpan.FromMilliseconds(250);
             SecTimer.Tick += SecTimer_Tick;
             SecTimer.Start();
@@ -246,6 +263,11 @@ namespace MYTGS
             // Begin the storyboard
             storyboard.Begin(this);
         }
-        
+
+        private void ContentGrid_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            Console.WriteLine("switched");
+            ShowTable = !ShowTable;
+        }
     }
 }

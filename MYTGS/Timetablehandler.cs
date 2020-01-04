@@ -257,14 +257,14 @@ namespace MYTGS
 
     public struct TimetablePeriod
     {
-        public DateTime Start;
-        public DateTime End;
-        public string Description;
-        public string Classcode;
-        public string Roomcode;
-        public bool GotoPeriod;
-        public int period;
-        public string Teacher;
+        public DateTime Start { get; set; }
+        public DateTime End { get; set; }
+        public string Description { get; set; }
+        public string Classcode { get; set; }
+        public string Roomcode { get; set; }
+        public bool GotoPeriod { get; set; }
+        public int period { get; set; }
+        public string Teacher { get; set; }
 
         public TimetablePeriod(DateTime start, DateTime end, string description, string classcode, string roomcode, bool gotoPeriod, int period)
         {

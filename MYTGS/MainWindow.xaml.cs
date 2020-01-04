@@ -164,6 +164,8 @@ namespace MYTGS
                 }));
             }
             List<TimetablePeriod> todayPeriods = Timetablehandler.ProcessForUse(Events, DateTime.UtcNow, false, true);
+            Console.WriteLine("Number of items " + todayPeriods.Count);
+            //EPR Check
             EPRcollection EPR = EPRHandler.ProcessEPR(EPRstr);
             DateTime EPRlocalDate = EPR.Date.ToLocalTime();
             for (int i = 0; i < todayPeriods.Count; i++)
@@ -183,6 +185,8 @@ namespace MYTGS
                     }
                 }
             }
+
+            //aply new schedule
             ClockWindow.SetSchedule(todayPeriods);
 
             //Environment.ExpandEnvironmentVariables((string)Properties.Settings.Default["TasksPath"])
@@ -266,7 +270,7 @@ namespace MYTGS
 
         private void MoveMenu_Click(object sender, EventArgs e)
         {
-            ClockWindow.FadeOnHover = false;
+            ClockWindow.MoveRequest = true;
             ClockWindow.MouseDown -= MoveClockWindow;
             ClockWindow.MouseDown += MoveClockWindow;
         }
@@ -277,7 +281,7 @@ namespace MYTGS
             {
                 ClockWindow.DragMove();
             }
-            ClockWindow.FadeOnHover = true;
+            ClockWindow.MoveRequest = false;
             ClockWindow.MouseDown -= MoveClockWindow;
         }
 

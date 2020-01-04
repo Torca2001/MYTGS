@@ -117,6 +117,7 @@ namespace MYTGS
                 position = 1;
             }
 
+            //Check if weekend for whether to fill
             if (day.DayOfWeek == DayOfWeek.Sunday || day.DayOfWeek == DayOfWeek.Saturday)
             {
                 //Don't fill in table only check for overlaps
@@ -125,30 +126,21 @@ namespace MYTGS
             }
             else
             {
-                //Fill in table with normal periods if not weekend
-                if (!EventsUptoDate)
+                //Confirm data is up to date and check whether there is any periods
+                //if data is updated and there is no periods don't fill in periods.
+                if (EventsUptoDate && Modified.Count == 0)
                 {
-                    periods = FillInTable(periods, day, EarlyFinish);
-                    Array.Resize(ref periods, 9);
-                    periods[7] = new TimetablePeriod(DateTimespan(day, RecessPeriods[position].Start), DateTimespan(day, RecessPeriods[position].End), RecessPeriods[position].description, "Break", "", false, 7);
-                    periods[8] = new TimetablePeriod(DateTimespan(day, LunchPeriods[position].Start), DateTimespan(day, LunchPeriods[position].End), LunchPeriods[position].description, "Break", "", false, 8);
-                    periods = OverlapCheck(periods);
-                    return periods.ToList();
+                    //Don't add breaks assume day off/holiday
+                    return Modified;
                 }
-                else
-                {
-                    if (Modified.Count == 0)
-                    {
-                        //Don't add breaks assume day off/holiday
-                        return Modified;
-                    }
-                    periods = FillInTable(periods, day, EarlyFinish);
-                    Array.Resize(ref periods, 9);
-                    periods[7] = new TimetablePeriod(DateTimespan(day, RecessPeriods[position].Start), DateTimespan(day, RecessPeriods[position].End), RecessPeriods[position].description, "Break", "", false, 7);
-                    periods[8] = new TimetablePeriod(DateTimespan(day, LunchPeriods[position].Start), DateTimespan(day, LunchPeriods[position].End), LunchPeriods[position].description, "Break", "", false, 8);
-                    periods = OverlapCheck(periods);
-                    return periods.ToList();
-                }
+
+                //Fill in table with appropriate data for day
+                periods = FillInTable(periods, day, EarlyFinish);
+                Array.Resize(ref periods, 9);
+                periods[7] = new TimetablePeriod(DateTimespan(day, RecessPeriods[position].Start), DateTimespan(day, RecessPeriods[position].End), RecessPeriods[position].description, "Recess", "", false, 7);
+                periods[8] = new TimetablePeriod(DateTimespan(day, LunchPeriods[position].Start), DateTimespan(day, LunchPeriods[position].End), LunchPeriods[position].description, LunchPeriods[position].description, "", false, 8);
+                periods = OverlapCheck(periods);
+                return periods.ToList();
             }
             
         }
@@ -278,6 +270,13 @@ namespace MYTGS
             this.period = period;
         }
 
+        public string Tooltip
+        {
+            get
+            {
+                return Start.ToShortTimeString() + " - " + End.ToShortTimeString() + " " + Description + " " + Teacher;
+            }
+        }
     }
 
     public struct BreakPeriod

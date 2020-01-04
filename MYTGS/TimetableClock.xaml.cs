@@ -26,6 +26,7 @@ namespace MYTGS
     {
         private List<TimetablePeriod> schedule = new List<TimetablePeriod>();
         public bool FadeOnHover = true;
+        public bool MoveRequest = false;
 
         public TimeSpan Countdown
         {
@@ -86,14 +87,13 @@ namespace MYTGS
 
         DispatcherTimer SecTimer = new DispatcherTimer();
 
-        private bool showTable;
+        private bool showTable = false;
         public event PropertyChangedEventHandler PropertyChanged;
 
         public TimetableClock()
         {
             InitializeComponent();
             this.DataContext = this;
-            ShowTable = true;
 
             //ContentCtrl.Content = new Button();
             SecTimer.Interval = TimeSpan.FromMilliseconds(250);
@@ -103,6 +103,7 @@ namespace MYTGS
 
         public void SetSchedule(List<TimetablePeriod> periods)
         {
+            //Order list by start time of the periods
             Schedule = periods.OrderBy(o => o.Start).ToList();
         }
 
@@ -175,7 +176,7 @@ namespace MYTGS
         //This is required as stuttering will occur if you make the object disappear as it will forget its previous size
         private void Grid_MouseEnter(object sender, MouseEventArgs e)
         {
-            if ( FadeOnHover)
+            if ( FadeOnHover && !MoveRequest)
             {
                 double Current_Width = ContentGrid.ActualWidth;
                 double Current_Height = ContentGrid.ActualHeight;
@@ -285,8 +286,10 @@ namespace MYTGS
 
         private void ContentGrid_MouseDown(object sender, MouseButtonEventArgs e)
         {
-            Console.WriteLine("switched");
-            ShowTable = !ShowTable;
+            if (e.LeftButton == MouseButtonState.Pressed && !MoveRequest )
+            {
+                ShowTable = !ShowTable;
+            }
         }
     }
 }

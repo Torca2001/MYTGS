@@ -35,7 +35,7 @@
             <ListView ItemsSource="{Binding Schedule}">
                 <ListView.ItemTemplate>
                     <DataTemplate>
-                        <Grid Height="50" HorizontalAlignment="Stretch">
+                        <Grid Height="50" HorizontalAlignment="Stretch" ToolTip="{Binding Path=Tooltip}" Background="#00555555">
                             <Label Content="{Binding Path=Classcode}" HorizontalAlignment="Left"/>
                             <Label Content="{Binding Path=Roomcode}" HorizontalAlignment="Right"/>
                         </Grid>

@@ -8,6 +8,10 @@
         Title="MYTGS" Height="450" Width="800" Closing="Window_Closing">
 
     <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition  Height="*"/>
+            <RowDefinition  Height="auto"/>
+        </Grid.RowDefinitions>
         <TabControl TabStripPlacement="Left" x:Name="MainTabControl">
             <TabControl.Resources>
                 <Style TargetType="TabItem">
@@ -137,5 +141,8 @@
                 </Grid>
             </TabItem>
         </TabControl>
+        <Grid Grid.Row="1" Name="MessageGrid" Visibility="Collapsed">
+            <Label HorizontalAlignment="Center" Name="MessageLabel" FontSize="20" FontFamily="Arial"></Label>
+        </Grid>
     </Grid>
 </Window>

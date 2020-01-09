@@ -90,13 +90,13 @@ namespace MYTGS
 
 
 
-        static public List<TimetablePeriod> ProcessForUse(Firefly.FFEvent[] events, DateTime day, bool EarlyFinish, bool EventsUptoDate)
+        static public List<TimetablePeriod> ProcessForUse(Firefly.FFEvent[] events, DateTime day, bool EarlyFinish, bool EventsUptoDate, bool FindForDay = true)
         {
             //If events not up to date then assume school day
             //If event is up to date and no events for the day Assume holiday
 
             List<TimetablePeriod> Modified = new List<TimetablePeriod>();
-            TimetablePeriod[] periods = ParseEventsToPeriods(EventsForDay(events, day));
+            TimetablePeriod[] periods = ParseEventsToPeriods(FindForDay ? EventsForDay(events, day) : events);
             
             for (int i = 0; i < 7; i++)
             {
@@ -106,6 +106,8 @@ namespace MYTGS
                     Modified.Add(periods[i]);
                 }
             }
+
+            day = day.ToLocalTime();
 
             int position = 0;
             if (EarlyFinish)
@@ -169,7 +171,7 @@ namespace MYTGS
             dd = dd.AddMinutes(tt.Minutes - dd.Minute);
             dd = dd.AddSeconds(tt.Seconds - dd.Second);
             dd = dd.AddMilliseconds(-dd.Millisecond);
-            return dd.ToUniversalTime();
+            return dd;
         }
 
         //Create period table for the day
@@ -193,7 +195,7 @@ namespace MYTGS
                     Match match = reg.Match(item.guid);
                     if (match.Success)
                     {
-                        table[Convert.ToInt16(match.Groups[3].Value)] = new TimetablePeriod(item.start, item.end, item.subject, match.Groups[1].ToString(), item.location, true, Convert.ToInt16(match.Groups[3].Value));
+                        table[Convert.ToInt16(match.Groups[3].Value)] = new TimetablePeriod(item.start.ToLocalTime(), item.end.ToLocalTime(), item.subject, match.Groups[1].ToString(), item.location, true, Convert.ToInt16(match.Groups[3].Value), item.Teacher);
                     }
                 }
                 catch
@@ -267,6 +269,18 @@ namespace MYTGS
             Roomcode = roomcode;
             GotoPeriod = gotoPeriod;
             Teacher = "";
+            this.period = period;
+        }
+
+        public TimetablePeriod(DateTime start, DateTime end, string description, string classcode, string roomcode, bool gotoPeriod, int period, string teacher)
+        {
+            Start = start;
+            End = end;
+            Description = description;
+            Classcode = classcode;
+            Roomcode = roomcode;
+            GotoPeriod = gotoPeriod;
+            Teacher = teacher;
             this.period = period;
         }
 

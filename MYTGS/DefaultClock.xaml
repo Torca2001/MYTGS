@@ -10,7 +10,7 @@
         <ImageBrush ImageSource="Resources/Background.png"/>
     </UserControl.Background>
     <Grid>
-        <Label x:Name="DescLabel" FontSize="16" FontWeight="Bold" Content="{Binding LabelDesc1}" HorizontalAlignment="Left" VerticalAlignment="Top" Foreground="White" Margin="5,0,0,0"/>
+        <Label x:Name="DescLabel" FontSize="16" FontWeight="Bold" Content="{Binding LabelDesc}" HorizontalAlignment="Left" VerticalAlignment="Top" Foreground="White" Margin="5,0,0,0"/>
         <Label x:Name="Noticeme" FontSize="16" FontWeight="Bold" HorizontalAlignment="Left" VerticalAlignment="Bottom" Content="{Binding CountDownStr, FallbackValue=00:00:00}" Foreground="White" Margin="5,0,0,0"/>
         <Label x:Name="RoomLabel" Content="{Binding LabelRoom}" FontSize="16" FontWeight="Bold" VerticalAlignment="Bottom" HorizontalAlignment="Right" Foreground="White" Margin="0,0,5,0"/>
     </Grid>

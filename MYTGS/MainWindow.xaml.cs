@@ -12,6 +12,7 @@ using NLog;
 using System.Windows.Media;
 using Microsoft.Win32;
 using System.Windows.Input;
+using System.Net;
 
 namespace MYTGS
 {
@@ -29,10 +30,16 @@ namespace MYTGS
         System.Windows.Forms.NotifyIcon nIcon = new System.Windows.Forms.NotifyIcon();
         System.Windows.Forms.ContextMenu menu = new System.Windows.Forms.ContextMenu();
         bool safeclose = false;
+        bool offlineMode = false;
+
+        private string TasksPath = Environment.ExpandEnvironmentVariables((string)Properties.Settings.Default["AppPath"]) + "Tasks\\";
 
         public MainWindow()
         {
             Application.Current.SessionEnding += Current_SessionEnding;
+            InitializeEventDB("Trinity");
+            //InitializeTasksDB("Trinity");
+
             // 10 minutes in milliseconds
             TenTimer.Interval = TimeSpan.FromMinutes(10);
             TenTimer.Tick += TenTimer_Tick;
@@ -42,6 +49,9 @@ namespace MYTGS
             ClockWindow.Show();
             ClockWindow.Left = System.Windows.SystemParameters.WorkArea.Width - ClockWindow.Width;
             ClockWindow.Top = System.Windows.SystemParameters.WorkArea.Height - ClockWindow.Height;
+
+            List<TimetablePeriod> todayPeriods = Timetablehandler.ProcessForUse(DBGetDayEvents("Trinity", DateTime.Now), DateTime.UtcNow, false, true, false);
+            ClockWindow.SetSchedule(todayPeriods);
 
             menu.MenuItems.Add("Home", new EventHandler(HomeMenu_Click));
             menu.MenuItems.Add("Move", new EventHandler(MoveMenu_Click));
@@ -53,13 +63,28 @@ namespace MYTGS
             nIcon.Visible = true;
 
             LoadCachedTasks();
-
-
+            
             logger.Info("Beginning Login checks");
             FF.OnLogin += FF_OnLogin;
-            if (!FF.OfflineMode && !FF.LoadKey())
+            if (!FF.LoadKey())
             {
-                FF.LoginUI();
+                if (FF.KeyAvailable())
+                {
+                    offlineMode = true;
+                    if (FF.Unauthorised)
+                    {
+                        DisplayMsg("App Unauthorised");
+                    }
+                    else
+                    {
+                        DisplayMsg("No connection");
+                    }
+                }
+                else
+                {
+                    DisplayMsg("Please Login", Brushes.Orange);
+                    FF.LoginUI();
+                }
             }
             TenTimer.Start();
             
@@ -77,7 +102,6 @@ namespace MYTGS
         private void LoadCachedTasks()
         {
             logger.Info("Loading Local tasks");
-            string TasksPath = Environment.ExpandEnvironmentVariables((string)Properties.Settings.Default["TasksPath"]);
             if (Directory.Exists(TasksPath))
             {
                 string[] TaskIDs = Directory.GetDirectories(TasksPath);
@@ -106,11 +130,6 @@ namespace MYTGS
         private void TenTimer_Tick(object sender, EventArgs e)
         {
             //Check for changes
-            string TasksPath = Environment.ExpandEnvironmentVariables((string)Properties.Settings.Default["TasksPath"]);
-            if (!Directory.Exists(TasksPath))
-                Directory.CreateDirectory(TasksPath);
-            if (TasksPath[TasksPath.Length - 1] != '\\' || TasksPath[TasksPath.Length - 1] != '/')
-                TasksPath += "\\";
             //UpdateTasks(TasksPath);
             
         }
@@ -119,13 +138,13 @@ namespace MYTGS
         private void FF_OnLogin(object sender, EventArgs e)
         {
             logger.Info("Login successful!");
-            
+            offlineMode = false;
+            HideMsg();
 
             StatusLabel.Dispatcher.Invoke(new Action(() => {
                 StatusLabel.Content = "Welcome " + FF.Name;
             }));
             //TasksBlock.Text = "";
-            string TasksPath = Environment.ExpandEnvironmentVariables((string)Properties.Settings.Default["TasksPath"]);
             if (!Directory.Exists(TasksPath))
                 Directory.CreateDirectory(TasksPath);
             if (TasksPath[TasksPath.Length - 1] != '\\' || TasksPath[TasksPath.Length - 1] != '/')
@@ -135,6 +154,7 @@ namespace MYTGS
 
             //TasksPath + "\\" + TaskID + "\\Task.json"
             //Tasks = FF.GetAllTasksByIds(FF.GetAllIds()).Reverse().ToDictionary(pv => pv.id, pv => pv);
+
             string EPRstr = FF.EPR();
             Dispatcher.Invoke(() => {
 
@@ -147,43 +167,61 @@ namespace MYTGS
 
             List<Firefly.FFEvent> TodayEvents = new List<Firefly.FFEvent>();
             //List<TimetablePeriod> periods = new List<TimetablePeriod>();
-            Firefly.FFEvent[] Events = FF.GetEvents(DateTime.Now.AddDays(-5), DateTime.Now.AddDays(10));
-            foreach (Firefly.FFEvent item in Events)
+            Firefly.FFEvent[] Events = FF.GetEvents(DateTime.Now.AddDays(-15), DateTime.Now.AddDays(15));
+            if (Events != null)
+            {
+                DBUpdateEvents("Trinity", Events, DateTime.UtcNow.AddDays(-15), DateTime.UtcNow.AddDays(15));
+            }
+
+            foreach (Firefly.FFEvent item in DBGetAllEvents("Trinity"))
             {
                 DateTime startlocal = item.start.ToLocalTime();
                 DateTime endlocal = item.end.ToLocalTime();
                 //Item is in this month 
-
+                
                 PlannerStack.Dispatcher.Invoke(new Action(() =>
                 {
                     Label lbl = new Label()
                     {
                         Content = "Start " + item.start.ToLocalTime() + " End " + item.end.ToLocalTime() + " Guid: " + item.guid + " Subject: " + item.subject + " Desc: " + item.description + " Loc: " + item.location
                     };
+                    if (item.Teacher.Length > 0)
+                        lbl.Content += " Teacher: " + item.Teacher;
                     PlannerStack.Items.Add(lbl);
                 }));
             }
-            List<TimetablePeriod> todayPeriods = Timetablehandler.ProcessForUse(Events, DateTime.UtcNow, false, true);
-            Console.WriteLine("Number of items " + todayPeriods.Count);
-            //EPR Check
-            EPRcollection EPR = EPRHandler.ProcessEPR(EPRstr);
-            DateTime EPRlocalDate = EPR.Date.ToLocalTime();
-            for (int i = 0; i < todayPeriods.Count; i++)
+
+            List<TimetablePeriod> todayPeriods = Timetablehandler.ProcessForUse(DBGetDayEvents("Trinity", DateTime.Now), DateTime.UtcNow, false, true, false);
+            
+            //Check EPR for updates
+            try
             {
-                Console.WriteLine("Period " + todayPeriods[i].period + " Class " + todayPeriods[i].Classcode + " Room: " + todayPeriods[i].Roomcode + " start: " + todayPeriods[i].Start.ToLocalTime() + " End: " + todayPeriods[i].End.ToLocalTime());
-                if (EPRlocalDate.Day == DateTime.Now.Day && EPRlocalDate.Month == DateTime.Now.Month && EPRlocalDate.Year == DateTime.Now.Year)
+
+                //EPR Check
+                EPRcollection EPR = EPRHandler.ProcessEPR(EPRstr);
+                DateTime EPRlocalDate = EPR.Date.ToLocalTime();
+
+                for (int i = 0; i < todayPeriods.Count; i++)
                 {
-                    //Room change
-                    if (EPR.Changes.ContainsKey(todayPeriods[i].Classcode + "-" + todayPeriods[i].period))
+                    Console.WriteLine("Period " + todayPeriods[i].period + " Class " + todayPeriods[i].Classcode + " Room: " + todayPeriods[i].Roomcode + " start: " + todayPeriods[i].Start.ToLocalTime() + " End: " + todayPeriods[i].End.ToLocalTime());
+                    if (EPRlocalDate.Day == DateTime.Now.Day && EPRlocalDate.Month == DateTime.Now.Month && EPRlocalDate.Year == DateTime.Now.Year)
                     {
-                        TimetablePeriod item = todayPeriods[i];
-                        item.Roomcode = EPR.Changes[item.Classcode + "-" + todayPeriods[i].period].Roomcode;
-                        item.Teacher = EPR.Changes[item.Classcode + "-" + todayPeriods[i].period].Teacher;
-                        todayPeriods[i] = item;
-                        nIcon.ShowBalloonTip(10000, "Class Change", item.Classcode + " Room: " + item.Roomcode + " Teacher: " + item.Teacher, System.Windows.Forms.ToolTipIcon.Warning);
-                        Console.WriteLine("Class was changed! Room: " + item.Roomcode + " Teacher: " + item.Teacher);
+                        //Room change
+                        if (EPR.Changes.ContainsKey(todayPeriods[i].Classcode + "-" + todayPeriods[i].period))
+                        {
+                            TimetablePeriod item = todayPeriods[i];
+                            item.Roomcode = EPR.Changes[item.Classcode + "-" + todayPeriods[i].period].Roomcode;
+                            item.Teacher = EPR.Changes[item.Classcode + "-" + todayPeriods[i].period].Teacher;
+                            todayPeriods[i] = item;
+                            nIcon.ShowBalloonTip(10000, "Class Change", item.Classcode + " Room: " + item.Roomcode + " Teacher: " + item.Teacher, System.Windows.Forms.ToolTipIcon.Warning);
+                            Console.WriteLine("Class was changed! Room: " + item.Roomcode + " Teacher: " + item.Teacher);
+                        }
                     }
                 }
+            }
+            catch
+            {
+                logger.Warn("EPR Processing failed");
             }
 
             //aply new schedule
@@ -271,6 +309,8 @@ namespace MYTGS
         private void MoveMenu_Click(object sender, EventArgs e)
         {
             ClockWindow.MoveRequest = true;
+
+            //Ensure to remove double up of move event
             ClockWindow.MouseDown -= MoveClockWindow;
             ClockWindow.MouseDown += MoveClockWindow;
         }
@@ -324,6 +364,63 @@ namespace MYTGS
         private void StartupCheckBox_Unchecked(object sender, RoutedEventArgs e)
         {
             RemoveApplicationFromStartup();
+        }
+
+        private void DisplayMsg(string msg, Brush background = null, Brush foreeground = null)
+        {
+
+            if (!Dispatcher.CheckAccess()) // CheckAccess returns true if you're on the dispatcher thread
+            {
+                Dispatcher.Invoke(() => {
+                    MessageGrid.Visibility = Visibility.Visible;
+                    MessageLabel.Content = msg;
+                    MessageGrid.Background = background ?? Brushes.Red;
+                    MessageLabel.Foreground = background ?? Brushes.White;
+                });
+                return;
+            }
+            else
+            {
+                MessageGrid.Visibility = Visibility.Visible;
+                MessageLabel.Content = msg;
+                MessageGrid.Background = background ?? Brushes.Red;
+                MessageLabel.Foreground = background ?? Brushes.White;
+            }
+        }
+
+        private void HideMsg(Brush background = null, Brush foreeground = null)
+        {
+            if (!Dispatcher.CheckAccess()) // CheckAccess returns true if you're on the dispatcher thread
+            {
+                Dispatcher.Invoke(() => {
+                    MessageGrid.Visibility = Visibility.Collapsed;
+                    MessageLabel.Content = "";
+                    MessageGrid.Background = background ?? Brushes.White;
+                    MessageLabel.Foreground = background ?? Brushes.Black;
+                });
+                return;
+            }
+            else
+            {
+                MessageGrid.Visibility = Visibility.Collapsed;
+                MessageLabel.Content = "";
+                MessageGrid.Background = background ?? Brushes.White;
+                MessageLabel.Foreground = background ?? Brushes.Black;
+            }
+        }
+
+        public static bool CheckForInternetConnection()
+        {
+            try
+            {
+                using (var client = new WebClient())
+                using (client.OpenRead("http://google.com/generate_204"))
+                    return true;
+            }
+            catch
+            {
+                return false;
+            }
         }
     }
 }

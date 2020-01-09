@@ -54,7 +54,8 @@ namespace MYTGS
                 labelDesc = value;
                 if (PropertyChanged != null)
                     PropertyChanged(this, new PropertyChangedEventArgs("LabelDesc"));
-            } }
+            }
+        }
         public string LabelRoom { get => labelRoom; set
             {
                 labelRoom = value;
@@ -120,50 +121,31 @@ namespace MYTGS
                     LabelRoom = "";
                     break;
                 }
+
                 if (Schedule[i].GotoPeriod)
                 {
                     DateTime GotoTime = Schedule[i].Start.AddMinutes(-5);
-                    if (Timetablehandler.CompareInBetween(GotoTime, Schedule[i].Start, DateTime.UtcNow))
+                    if (Timetablehandler.CompareInBetween(GotoTime, Schedule[i].Start, DateTime.Now))
                     {
-                        Countdown = Schedule[i].Start.ToLocalTime() - DateTime.Now;
+                        Countdown = Schedule[i].Start - DateTime.Now;
                         LabelDesc = "Go to " + AutoDesc(Schedule[i]);
                         LabelRoom = Schedule[i].Roomcode;
                         break;
                     }
-                    else if (Timetablehandler.CompareInBetween(Schedule[i].Start, Schedule[i].End, DateTime.UtcNow))
+                    else if (Timetablehandler.CompareInBetween(Schedule[i].Start, Schedule[i].End, DateTime.Now))
                     {
-                        Countdown = Schedule[i].End.ToLocalTime() - DateTime.Now;
+                        Countdown = Schedule[i].End - DateTime.Now;
                         LabelDesc = AutoDesc(Schedule[i]);
                         LabelRoom = Schedule[i].Roomcode;
                         break;
                     }
                 }
-                else if (Timetablehandler.CompareInBetween(Schedule[i].Start, Schedule[i].End, DateTime.UtcNow))
+                else if (Timetablehandler.CompareInBetween(Schedule[i].Start, Schedule[i].End, DateTime.Now))
                 {
-                    Countdown = Schedule[i].End.ToLocalTime() - DateTime.Now;
+                    Countdown = Schedule[i].End - DateTime.Now;
                     LabelDesc = AutoDesc(Schedule[i]);
                     LabelRoom = Schedule[i].Roomcode;
                     break;
-                }
-            }
-        }
-
-        public static IEnumerable<T> FindVisualChildren<T>(DependencyObject depObj) where T : DependencyObject
-        {
-            if (depObj != null)
-            {
-                for (int i = 0; i < VisualTreeHelper.GetChildrenCount(depObj); i++)
-                {
-                    DependencyObject child = VisualTreeHelper.GetChild(depObj, i);
-                    if (child != null && child is T)
-                    {
-                        yield return (T)child;
-                    }
-
-                    foreach (T childOfChild in FindVisualChildren<T>(child))
-                    {
-                        yield return childOfChild;
-                    }
                 }
             }
         }

@@ -427,6 +427,33 @@ namespace Firefly
             }
         }
 
+        public bool Logout()
+        {
+            if (!loggedIn)
+            {
+                return false;
+            }
+
+            try
+            {
+                // /profilepic.aspx?guid= &size=regular
+                using (WebClient webClient = new WebClient())
+                {
+                    string res = webClient.DownloadString(SchoolUrl + @"/login/api/deletetoken?app_id=android_tasks&ffauth_device_id=" + DeviceID + "&ffauth_secret=" + Token);
+                    if (res == "OK")
+                    {
+                        //Request was accepted
+                        return true;
+                    }
+                }
+            }
+            catch
+            {
+                
+            }
+            return false;
+        }
+
         public Response[] GetResponseForID(int ID)
         {
             if (!loggedIn)
@@ -514,8 +541,6 @@ namespace Firefly
             }
             return results;
         }
-
-
 
         private void LoginWindow_OnResult(object sender, Login.OnResultEventArgs e)
         {

@@ -27,6 +27,8 @@ namespace MYTGS
         private List<TimetablePeriod> schedule = new List<TimetablePeriod>();
         public bool FadeOnHover = true;
         public bool MoveRequest = false;
+        public bool HideOnFullscreen = true;
+        private bool AutoHide = false;
 
         public TimeSpan Countdown
         {
@@ -148,6 +150,24 @@ namespace MYTGS
                     break;
                 }
             }
+
+            if (HideOnFullscreen && IsForegroundFullScreen(System.Windows.Forms.Screen.FromHandle(new WindowInteropHelper(this).Handle), true))
+            {
+                if (!AutoHide)
+                {
+                    FadeOutWindow();
+                    AutoHide = true;
+                }
+            }
+            else
+            {
+                if (AutoHide)
+                {
+                    FadeInWindow();
+                    AutoHide = false;
+                }
+            }
+
         }
 
         private string AutoDesc(TimetablePeriod period)
@@ -273,5 +293,65 @@ namespace MYTGS
                 ShowTable = !ShowTable;
             }
         }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct RECT
+        {
+            public int left;
+            public int top;
+            public int right;
+            public int bottom;
+        }
+
+        [DllImport("user32.dll", SetLastError = true)]
+        public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+
+        [DllImport("user32.dll")]
+        private static extern bool GetWindowRect(HandleRef hWnd, [In, Out] ref RECT rect);
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetForegroundWindow();
+
+        public static bool IsForegroundFullScreen()
+        {
+            return IsForegroundFullScreen(null);
+        }
+
+
+        public static bool IsForegroundFullScreen(System.Windows.Forms.Screen screen, bool SameScreen = false)
+        {
+
+            if (screen == null)
+            {
+                screen = System.Windows.Forms.Screen.PrimaryScreen;
+            }
+            RECT rect = new RECT();
+            IntPtr hWnd = (IntPtr)GetForegroundWindow();
+
+
+            GetWindowRect(new HandleRef(null, hWnd), ref rect);
+
+            /* in case you want the process name:
+            uint procId = 0;
+            GetWindowThreadProcessId(hWnd, out procId);
+            var proc = System.Diagnostics.Process.GetProcessById((int)procId);
+            Console.WriteLine(proc.ProcessName);
+            */
+            bool Fullsize = screen.Bounds.Width == (rect.right - rect.left) && screen.Bounds.Height == (rect.bottom - rect.top);
+
+            if (SameScreen)
+            {
+                return new System.Drawing.Rectangle(rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top).Contains(screen.Bounds) && Fullsize;
+            }
+            return Fullsize;
+
+
+        }
+
+
     }
+
+
 }
+
+

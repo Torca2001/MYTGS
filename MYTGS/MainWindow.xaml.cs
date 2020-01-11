@@ -199,6 +199,14 @@ namespace MYTGS
 
                 //EPR Check
                 EPRcollection EPR = EPRHandler.ProcessEPR(EPRstr);
+                if (Properties.Settings.Default["LastEPR"] != null)
+                    Console.WriteLine(((EPRcollection)Properties.Settings.Default["LastEPR"]).Date.ToShortDateString() + " derp");
+                Console.WriteLine("checked derp");
+                Properties.Settings.Default["LastEPR"] = EPR;
+                Properties.Settings.Default.Save();
+
+                Console.WriteLine(((EPRcollection)Properties.Settings.Default["LastEPR"]).Date.ToShortDateString() + " derp");
+
                 DateTime EPRlocalDate = EPR.Date.ToLocalTime();
 
                 for (int i = 0; i < todayPeriods.Count; i++)

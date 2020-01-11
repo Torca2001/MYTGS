@@ -8,5 +8,8 @@
     <Setting Name="LastFetch" Type="System.DateTime" Scope="User">
       <Value Profile="(Default)">2019-04-21</Value>
     </Setting>
+    <Setting Name="LastEPR" Type="MYTGS.EPRcollection" Scope="User">
+      <Value Profile="(Default)" />
+    </Setting>
   </Settings>
 </SettingsFile>

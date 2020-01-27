@@ -13,13 +13,15 @@ using System.Windows.Media;
 using Microsoft.Win32;
 using System.Windows.Input;
 using System.Net;
+using System.ComponentModel;
+using System.Text.RegularExpressions;
 
 namespace MYTGS
 {
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
-    public partial class MainWindow : Window
+    public partial class MainWindow : Window, INotifyPropertyChanged
     {
         private Logger logger = LogManager.GetCurrentClassLogger();
         //set to use only MYTGS firefly cloud 
@@ -27,8 +29,11 @@ namespace MYTGS
         Dictionary<int,Firefly.FullTask> Tasks = new Dictionary<int,Firefly.FullTask>();
         DispatcherTimer TenTimer = new DispatcherTimer();
         TimetableClock ClockWindow = new TimetableClock();
+
+        public event PropertyChangedEventHandler PropertyChanged;
         System.Windows.Forms.NotifyIcon nIcon = new System.Windows.Forms.NotifyIcon();
         System.Windows.Forms.ContextMenu menu = new System.Windows.Forms.ContextMenu();
+        Settings settings = new Settings();
         bool safeclose = false;
         bool offlineMode = false;
 
@@ -38,27 +43,37 @@ namespace MYTGS
         {
             Application.Current.SessionEnding += Current_SessionEnding;
             InitializeEventDB("Trinity");
+            LoadSettings();
             //InitializeTasksDB("Trinity");
-
+            
             // 10 minutes in milliseconds
             TenTimer.Interval = TimeSpan.FromMinutes(10);
             TenTimer.Tick += TenTimer_Tick;
             InitializeComponent(); //Initialize WPF Window and objects
+            if (System.Deployment.Application.ApplicationDeployment.IsNetworkDeployed)
+                UpdateVerLabel.Content = "Updates V: " + System.Deployment.Application.ApplicationDeployment.CurrentDeployment.CurrentVersion;
+            this.DataContext = this;
+            if (StartMinimized)
+            {
+                ShowInTaskbar = false;
+                Hide();
+            }
+
             //test.Content = JsonConvert.SerializeObject(DateTime.Now.ToUniversalTime());
             ClockWindow.Background = new SolidColorBrush(Color.FromArgb(0, 255, 255, 255));
             ClockWindow.Show();
             ClockWindow.Left = System.Windows.SystemParameters.WorkArea.Width - ClockWindow.Width;
             ClockWindow.Top = System.Windows.SystemParameters.WorkArea.Height - ClockWindow.Height;
 
-            List<TimetablePeriod> todayPeriods = Timetablehandler.ProcessForUse(DBGetDayEvents("Trinity", DateTime.Now), DateTime.UtcNow, false, true, false);
+            List<TimetablePeriod> todayPeriods = Timetablehandler.ProcessForUse(DBGetDayEvents("Trinity", DateTime.Now), DateTime.UtcNow, false, false, false);
+            todayPeriods = EPRCheck(LastEPR, todayPeriods);
             ClockWindow.SetSchedule(todayPeriods);
 
             menu.MenuItems.Add("Home", new EventHandler(HomeMenu_Click));
             menu.MenuItems.Add("Move", new EventHandler(MoveMenu_Click));
             menu.MenuItems.Add("Quit", new EventHandler(QuitMenu_Click));
-
             nIcon.ContextMenu = menu;
-            nIcon.Icon = Properties.Resources.placeholder;
+            nIcon.Icon = Properties.Resources.logo;
             nIcon.DoubleClick += HomeMenu_Click;
             nIcon.Visible = true;
 
@@ -134,6 +149,35 @@ namespace MYTGS
             
         }
 
+        private List<TimetablePeriod> EPRCheck(EPRcollection epr, List<TimetablePeriod> periods)
+        {
+            DateTime EPRlocalDate = epr.Date.ToLocalTime();
+
+            if (epr.Errors)
+            {
+                nIcon.ShowBalloonTip(10000, "EPR Error", "EPR Processing ran into some errors, please check EPR yourself", System.Windows.Forms.ToolTipIcon.Error);
+            }
+
+            for (int i = 0; i < periods.Count; i++)
+            {
+                Console.WriteLine("Period " + periods[i].period + " Class " + periods[i].Classcode + " Room: " + periods[i].Roomcode + " start: " + periods[i].Start.ToLocalTime() + " End: " + periods[i].End.ToLocalTime());
+                if (EPRlocalDate.Day == DateTime.Now.Day && EPRlocalDate.Month == DateTime.Now.Month && EPRlocalDate.Year == DateTime.Now.Year)
+                {
+                    //Room change
+                    if (LastEPR.Changes.ContainsKey(periods[i].Classcode + "-" + periods[i].period))
+                    {
+                        TimetablePeriod item = periods[i];
+                        item.Roomcode = LastEPR.Changes[item.Classcode + "-" + periods[i].period].Roomcode;
+                        item.Teacher = LastEPR.Changes[item.Classcode + "-" + periods[i].period].Teacher;
+                        periods[i] = item;
+                        nIcon.ShowBalloonTip(10000, "Class Change", item.Classcode + " Room: " + item.Roomcode + " Teacher: " + item.Teacher, System.Windows.Forms.ToolTipIcon.Info);
+                        Console.WriteLine("Class was changed! Room: " + item.Roomcode + " Teacher: " + item.Teacher);
+                    }
+                }
+            }
+            return periods;
+        }
+
         //Event fired when successfully connected to Firefly
         private void FF_OnLogin(object sender, EventArgs e)
         {
@@ -151,6 +195,7 @@ namespace MYTGS
                 TasksPath += "\\";
             //UpdateTasks(TasksPath);
 
+            //UpdateCalendar("Trinity");
 
             //TasksPath + "\\" + TaskID + "\\Task.json"
             //Tasks = FF.GetAllTasksByIds(FF.GetAllIds()).Reverse().ToDictionary(pv => pv.id, pv => pv);
@@ -198,34 +243,18 @@ namespace MYTGS
             {
 
                 //EPR Check
-                EPRcollection EPR = EPRHandler.ProcessEPR(EPRstr);
-                if (Properties.Settings.Default["LastEPR"] != null)
-                    Console.WriteLine(((EPRcollection)Properties.Settings.Default["LastEPR"]).Date.ToShortDateString() + " derp");
-                Console.WriteLine("checked derp");
-                Properties.Settings.Default["LastEPR"] = EPR;
-                Properties.Settings.Default.Save();
-
-                Console.WriteLine(((EPRcollection)Properties.Settings.Default["LastEPR"]).Date.ToShortDateString() + " derp");
-
-                DateTime EPRlocalDate = EPR.Date.ToLocalTime();
-
-                for (int i = 0; i < todayPeriods.Count; i++)
+                EPRcollection EPR;
+                if (EPRstr == null)
                 {
-                    Console.WriteLine("Period " + todayPeriods[i].period + " Class " + todayPeriods[i].Classcode + " Room: " + todayPeriods[i].Roomcode + " start: " + todayPeriods[i].Start.ToLocalTime() + " End: " + todayPeriods[i].End.ToLocalTime());
-                    if (EPRlocalDate.Day == DateTime.Now.Day && EPRlocalDate.Month == DateTime.Now.Month && EPRlocalDate.Year == DateTime.Now.Year)
-                    {
-                        //Room change
-                        if (EPR.Changes.ContainsKey(todayPeriods[i].Classcode + "-" + todayPeriods[i].period))
-                        {
-                            TimetablePeriod item = todayPeriods[i];
-                            item.Roomcode = EPR.Changes[item.Classcode + "-" + todayPeriods[i].period].Roomcode;
-                            item.Teacher = EPR.Changes[item.Classcode + "-" + todayPeriods[i].period].Teacher;
-                            todayPeriods[i] = item;
-                            nIcon.ShowBalloonTip(10000, "Class Change", item.Classcode + " Room: " + item.Roomcode + " Teacher: " + item.Teacher, System.Windows.Forms.ToolTipIcon.Warning);
-                            Console.WriteLine("Class was changed! Room: " + item.Roomcode + " Teacher: " + item.Teacher);
-                        }
-                    }
+                    EPR = LastEPR;
                 }
+                else
+                {
+                    EPR = EPRHandler.ProcessEPR(EPRstr);
+                    LastEPR = EPR;
+                }
+
+                todayPeriods = EPRCheck(EPR, todayPeriods);
             }
             catch
             {
@@ -276,7 +305,7 @@ namespace MYTGS
         {
             using (RegistryKey key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true))
             {
-                key.SetValue("MYTGS App", "\"" + System.Reflection.Assembly.GetExecutingAssembly().Location + "\"");
+                key.SetValue("MYTGS App", "\"" + System.Reflection.Assembly.GetExecutingAssembly().Location + "\" /SystemStartup");
             }
         }
 
@@ -293,7 +322,7 @@ namespace MYTGS
             using (RegistryKey key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true))
             {
                 object k = key.GetValue("MYTGS App");
-                if (k != null && (string)k == "\"" + System.Reflection.Assembly.GetExecutingAssembly().Location + "\"")
+                if (k != null && (string)k == "\"" + System.Reflection.Assembly.GetExecutingAssembly().Location + "\" /SystemStartup")
                 {
                     return true;
                 }
@@ -356,13 +385,14 @@ namespace MYTGS
             // Check if closing by the menu or system shutdown
             if (safeclose == false)
             {
+                ShowInTaskbar = false;
                 e.Cancel = true;
                 Hide();
-                ShowInTaskbar = false;
                 return;
             }
             ClockWindow?.Close();
         }
+
 
         private void StartupCheckBox_Checked(object sender, RoutedEventArgs e)
         {
@@ -429,6 +459,56 @@ namespace MYTGS
             {
                 return false;
             }
+        }
+
+        private static readonly Regex _regex = new Regex("[^0-9]+"); //regex that matches disallowed text
+        private static bool IsTextAllowed(string text)
+        {
+            return !_regex.IsMatch(text);
+        }
+
+        private void TextBox_PreviewTextInput(object sender, TextCompositionEventArgs e)
+        {
+            if (((TextBox)sender).CaretIndex == 0)
+            {
+                e.Handled = Regex.IsMatch(e.Text, "[^0-9.-]+");
+            }
+            else
+            {
+                e.Handled = !IsTextAllowed(e.Text);
+            }
+        }
+
+        private void TextBoxPasting(object sender, DataObjectPastingEventArgs e)
+        {
+            if (e.DataObject.GetDataPresent(typeof(String)))
+            {
+                String text = (String)e.DataObject.GetData(typeof(String));
+                if (Regex.IsMatch(text, "[^0-9.-]+"))
+                {
+                    e.CancelCommand();
+                }
+            }
+            else
+            {
+                e.CancelCommand();
+            }
+        }
+
+        private void TextBox_PreviewLostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+        {
+            int value;
+            if (!int.TryParse(((TextBox)sender).Text, out value))
+            {
+                ((TextBox)sender).Text = Offset.ToString();
+                e.Handled = true;
+            }
+        }
+
+        private void UpdateButton_Click(object sender, RoutedEventArgs e)
+        {
+            UpdateButton.IsEnabled = false;
+            UpdateApplication();
         }
     }
 }

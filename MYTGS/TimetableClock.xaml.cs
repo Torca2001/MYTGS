@@ -25,9 +25,12 @@ namespace MYTGS
     public partial class TimetableClock : Window , INotifyPropertyChanged
     {
         private List<TimetablePeriod> schedule = new List<TimetablePeriod>();
-        public bool FadeOnHover = true;
+        public bool FadeOnHover = false;
+        public bool HideOnFullscreen = false;
+        public bool HideOnFinish = false;
+        public int Offset { get; set; }
+
         public bool MoveRequest = false;
-        public bool HideOnFullscreen = true;
         private bool AutoHide = false;
 
         public TimeSpan Countdown
@@ -124,27 +127,29 @@ namespace MYTGS
                     break;
                 }
 
+
+                DateTime RN = DateTime.Now.AddSeconds(Offset);
                 if (Schedule[i].GotoPeriod)
                 {
                     DateTime GotoTime = Schedule[i].Start.AddMinutes(-5);
-                    if (Timetablehandler.CompareInBetween(GotoTime, Schedule[i].Start, DateTime.Now))
+                    if (Timetablehandler.CompareInBetween(GotoTime, Schedule[i].Start, RN))
                     {
-                        Countdown = Schedule[i].Start - DateTime.Now;
+                        Countdown = Schedule[i].Start - RN;
                         LabelDesc = "Go to " + AutoDesc(Schedule[i]);
                         LabelRoom = Schedule[i].Roomcode;
                         break;
                     }
-                    else if (Timetablehandler.CompareInBetween(Schedule[i].Start, Schedule[i].End, DateTime.Now))
+                    else if (Timetablehandler.CompareInBetween(Schedule[i].Start, Schedule[i].End, RN))
                     {
-                        Countdown = Schedule[i].End - DateTime.Now;
+                        Countdown = Schedule[i].End - RN;
                         LabelDesc = AutoDesc(Schedule[i]);
                         LabelRoom = Schedule[i].Roomcode;
                         break;
                     }
                 }
-                else if (Timetablehandler.CompareInBetween(Schedule[i].Start, Schedule[i].End, DateTime.Now))
+                else if (Timetablehandler.CompareInBetween(Schedule[i].Start, Schedule[i].End, RN))
                 {
-                    Countdown = Schedule[i].End - DateTime.Now;
+                    Countdown = Schedule[i].End - RN;
                     LabelDesc = AutoDesc(Schedule[i]);
                     LabelRoom = Schedule[i].Roomcode;
                     break;

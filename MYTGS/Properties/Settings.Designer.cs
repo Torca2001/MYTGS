@@ -46,16 +46,5 @@ namespace MYTGS.Properties {
                 this["LastFetch"] = value;
             }
         }
-        
-        [global::System.Configuration.UserScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        public global::MYTGS.EPRcollection LastEPR {
-            get {
-                return ((global::MYTGS.EPRcollection)(this["LastEPR"]));
-            }
-            set {
-                this["LastEPR"] = value;
-            }
-        }
     }
 }

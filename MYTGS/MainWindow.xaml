@@ -3,16 +3,18 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:fa="http://schemas.fontawesome.com/icons/"
         xmlns:local="clr-namespace:MYTGS"
         mc:Ignorable="d"
-        Title="MYTGS" Height="450" Width="800" Closing="Window_Closing">
+        Title="MYTGS" Height="450" Width="800" Closing="Window_Closing" 
+        Icon="Resources/logo.ico">
 
-    <Grid>
+    <Grid Background="#FF4E73DF">
         <Grid.RowDefinitions>
             <RowDefinition  Height="*"/>
             <RowDefinition  Height="auto"/>
         </Grid.RowDefinitions>
-        <TabControl TabStripPlacement="Left" x:Name="MainTabControl">
+        <TabControl TabStripPlacement="Left" x:Name="MainTabControl" Background="White">
             <TabControl.Resources>
                 <Style TargetType="TabItem">
                     <Setter Property="FontSize" Value="20" />
@@ -20,17 +22,17 @@
                     <Setter Property="Template">
                         <Setter.Value>
                             <ControlTemplate TargetType="TabItem">
-
-                                <Border Name="Border" BorderThickness="0,1,1,0" BorderBrush="Gainsboro" Margin="0">
+                                <Border Name="Border" BorderThickness="0,1,0,0" BorderBrush="Gainsboro" Margin=" -2,-3,-1,3" Background="{x:Null}">
                                     <ContentPresenter x:Name="ContentSite"
                                         VerticalAlignment="Center"
                                         HorizontalAlignment="Center"
                                         ContentSource="Header"
-                                        Margin="10,4"/>
+                                        Margin="10, 4, 10, 4"/>
                                 </Border>
                                 <ControlTemplate.Triggers>
                                     <Trigger Property="IsSelected" Value="True">
-                                        <Setter TargetName="Border" Property="Background" Value="LightSkyBlue" />
+                                        <Setter TargetName="Border" Property="Background" Value="#FF3939E4" />
+                                        <Setter TargetName="Border" Property="BorderThickness" Value="0,1,0,0" />
                                     </Trigger>
                                     <Trigger Property="IsSelected" Value="False">
                                         <Setter TargetName="Border" Property="Background" Value="transparent" />
@@ -43,23 +45,23 @@
             </TabControl.Resources>
             <TabItem>
                 <TabItem.Header>
-                    <Image Width="27" Source="Resources/HomeIconx27.png" />
+                    <fa:SvgAwesome Icon="Solid_Home" Width="27" Foreground="White"/>
                 </TabItem.Header>
-                <Grid Background="#FFE5E5E5">
+                <Grid Background="#FFE5E5E5" Margin="-2">
                     <WebBrowser x:Name="eprbrowser"/>
                 </Grid>
             </TabItem>
             <TabItem>
                 <TabItem.Header>
-                    <Image Width="27" Source="Resources/CheckIconx27.png" Opacity="0.6"/>
+                    <fa:SvgAwesome Icon="Solid_Tasks" Width="27" Foreground="White"/>
                 </TabItem.Header>
-                <Grid Background="#FFE5E5E5">
+                <Grid Background="#FFE5E5E5" Margin="-2">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" MaxWidth="550"/>
                         <ColumnDefinition Width="auto"/>
                     </Grid.ColumnDefinitions>
 
-                    <ListBox x:Name="TaskStack" MouseDoubleClick="TaskStack_MouseDoubleClick">
+                    <ListBox x:Name="TaskStack" MouseDoubleClick="TaskStack_MouseDoubleClick" Background="{x:Null}" BorderBrush="{x:Null}">
                         <ListBox.ItemContainerStyle>
                             <Style TargetType="ListBoxItem">
                                 <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
@@ -76,9 +78,9 @@
             </TabItem>
             <TabItem>
                 <TabItem.Header>
-                    <Image Width="27" Source="Resources/UserIconx27.png" />
+                    <fa:SvgAwesome Icon="Regular_User" Width="27" Foreground="White"/>
                 </TabItem.Header>
-                <Grid Background="#FFE5E5E5">
+                <Grid Background="#FFE5E5E5" Margin="-2">
                     <Image x:Name="UserImage" Width="200" Height="200" HorizontalAlignment="Left" VerticalAlignment="Top" >
                         <Image.Style>
                             <Style TargetType="{x:Type Image}">
@@ -93,44 +95,114 @@
             </TabItem>
             <TabItem>
                 <TabItem.Header>
-                    <Image Width="27" Source="Resources/CalendarIconx27.png" />
+                    <fa:SvgAwesome Icon="Regular_CalendarAlt" Width="27" Foreground="White"/>
                 </TabItem.Header>
-                <Grid Background="#FFE5E5E5">
-                    <ListBox x:Name="PlannerStack">
-                        
+                <Grid Background="#FFE5E5E5" Margin="-2">
+                    <ListBox x:Name="PlannerStack" Background="{x:Null}" BorderBrush="{x:Null}">
+
                     </ListBox>
                 </Grid>
             </TabItem>
             <TabItem>
                 <TabItem.Header>
-                    <Image Width="27"  Source="Resources/GearSmall.png"/>
+                    <fa:SvgAwesome Icon="Solid_Cog" Width="27" Foreground="White"/>
                 </TabItem.Header>
-                <Grid Background="#FFE5E5E5">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="150px"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
+                <Grid Background="#FFE5E5E5" Margin="-2">
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="50px"/>
-                        <RowDefinition Height="50px"/>
-                        <RowDefinition Height="50px"/>
-                        <RowDefinition Height="50px"/>
-                        <RowDefinition Height="50px"/>
-                        <RowDefinition Height="50px"/>
                         <RowDefinition Height="*"/>
+                        <RowDefinition Height="auto"/>
                     </Grid.RowDefinitions>
-                    <Label Content="Run on Startup" FontSize="16" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                    <CheckBox x:Name="StartupCheckBox" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="50,0,0,0" Unchecked="StartupCheckBox_Unchecked" />
-                    <Label Content="Offset" Grid.Row="1" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                    <TextBox Grid.Column="1" Grid.Row="1" Width="100" Height="40" HorizontalAlignment="Left"/>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="100"/>
+                    </Grid.ColumnDefinitions>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel>
+                            <Expander Grid.ColumnSpan="3" Header="Application" Grid.Row="0" IsExpanded="True" Background="{x:Null}" BorderBrush="{x:Null}" Foreground="#FF0481FF">
+                                <Grid Background="#FFE5E5E5">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="150px"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="50px"/>
+                                        <RowDefinition Height="50px"/>
+                                        <RowDefinition Height="50px"/>
+                                    </Grid.RowDefinitions>
+
+
+                                    <Label Content="Run on Startup" ToolTip="Sets a registry key to startup program" Grid.Row="0" FontSize="16" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                    <CheckBox x:Name="StartupCheckBox" Grid.Column="1" Grid.Row="0" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="50,0,0,0" Unchecked="StartupCheckBox_Unchecked" />
+
+                                    <Label Content="Start Minimized" ToolTip="During startup main window will remain hidden" Grid.Row="1" FontSize="16" HorizontalContentAlignment="Right" VerticalAlignment="Center"/>
+                                    <CheckBox Grid.Row="1" Grid.Column="1" Margin="50,0,0,0" VerticalAlignment="Center" IsChecked="{Binding StartMinimized}"/>
+
+                                    <Label x:Name="UpdateVerLabel" ToolTip="Update program to latest version" Content="Updates v: Error" FontSize="16" Grid.Row="2" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                    <Button x:Name="UpdateButton" Grid.Row="2" Grid.Column="1" Width="70" Height="30" HorizontalAlignment="Left" FontSize="16" Margin="20,0,0,0" Click="UpdateButton_Click">Check</Button>
+                                </Grid>
+                            </Expander>
+                            <Expander Grid.ColumnSpan="3" Header="Clock" Grid.Row="1" Foreground="#FF0481FF" Background="{x:Null}" BorderBrush="{x:Null}">
+                                <Grid Background="#FFE5E5E5">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="150px"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="50px"/>
+                                        <RowDefinition Height="50px"/>
+                                        <RowDefinition Height="50px"/>
+                                        <RowDefinition Height="50px"/>
+                                    </Grid.RowDefinitions>
+                                    <Label Content="Hide on fullscreen" ToolTip="Clock will hide if the currently focused window is in fullscreen" Grid.Row="0" FontSize="16" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                    <CheckBox Grid.Column="1" Grid.Row="0" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="50,0,0,0" IsChecked="{Binding HideOnFullscreen}"/>
+
+                                    <Label Content="Fade on hover" ToolTip="Clock will hide when mouse is over it" Grid.Row="1" FontSize="16" HorizontalContentAlignment="Right" VerticalAlignment="Center"/>
+                                    <CheckBox Grid.Row="1" Grid.Column="1" Margin="50,0,0,0" VerticalAlignment="Center" IsChecked="{Binding FadeOnHover}" />
+
+                                    <Label Content="Offset (seconds)" ToolTip="Offset the clock to correct for bell misalignment" Grid.Row="2" HorizontalAlignment="Right" VerticalAlignment="Center" FontSize="16"/>
+                                    <TextBox Grid.Column="1" Grid.Row="2" Width="100" Height="40" HorizontalAlignment="Left" Text="{Binding Offset, Mode=TwoWay}" FontSize="20" Padding="0,5" Margin="8,0,0,0" HorizontalScrollBarVisibility="Disabled" MaxLength="7" MaxLines="1" PreviewTextInput="TextBox_PreviewTextInput" DataObject.Pasting="TextBoxPasting" PreviewLostKeyboardFocus="TextBox_PreviewLostKeyboardFocus"/>
+
+                                    <Label Content="Hide on End" ToolTip="Clock will hide itself if there are no schedules periods for the day" Grid.Row="3" FontSize="16" HorizontalContentAlignment="Right" VerticalAlignment="Center"/>
+                                    <CheckBox Grid.Row="3" Grid.Column="1" Margin="50,0,0,0" VerticalAlignment="Center" IsChecked="{Binding HideOnFinish}" />
+
+                                </Grid>
+                            </Expander>
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <Label Content="About" Grid.Column="1" Foreground="#FF0481FF" />
+                    <TextBlock Text="Application was made by William Condick" ToolTip="Y12 2020" Grid.Column="1" TextWrapping="Wrap" FontSize="12" Margin="0,35,0,0"/>
+
+                    <Label x:Name="ProgressLabel" Content="" Grid.Row="1" Grid.ColumnSpan="2" FontSize="14" Panel.ZIndex="1" VerticalAlignment="Bottom" HorizontalAlignment="Center" VerticalContentAlignment="Center" Margin="0,0,0,-4">
+                        <Label.Style>
+                            <Style TargetType="Label">
+                                <Style.Triggers>
+                                    <Trigger Property="Content" Value="">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Label.Style>
+                    </Label>
+                    <ProgressBar x:Name="SettingsProgressBar" Grid.Row="1" Grid.ColumnSpan="2" VerticalAlignment="Bottom" MaxHeight="50" Height="20">
+                        <ProgressBar.Style>
+                            <Style TargetType="ProgressBar">
+                                <Style.Triggers>
+                                    <Trigger Property="Value" Value="0">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ProgressBar.Style>
+                    </ProgressBar>
                 </Grid>
-                    
+
             </TabItem>
             <TabItem Visibility="Collapsed" x:Name="TaskTab">
-                <Grid>
+                <Grid Margin="-2">
                     <Grid DataContext="{Binding ElementName=TaskStack, Path=SelectedItem}">
                         <Label Content="{Binding title,FallbackValue='Task Title'}"/>
-                        <ListBox Margin="0,40,0,0" HorizontalAlignment="Stretch" ItemsSource="{Binding recipientsResponses[0].responses}">
+                        <ListBox Margin="0,40,0,0" HorizontalAlignment="Stretch" ItemsSource="{Binding recipientsResponses[0].responses}" BorderThickness="0,1,0,0">
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
                                     <Label Content="{Binding message}"/>

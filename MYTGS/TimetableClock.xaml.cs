@@ -28,6 +28,7 @@ namespace MYTGS
         public bool FadeOnHover = false;
         public bool HideOnFullscreen = false;
         public bool HideOnFinish = false;
+        private bool Hiding = false;
         public int Offset { get; set; }
 
         public bool MoveRequest = false;
@@ -117,13 +118,19 @@ namespace MYTGS
 
         private void SecTimer_Tick(object sender, EventArgs e)
         {
-            for (int i = 0; i <= Schedule.Count; i++)
+            int i = 0;
+            for (i = 0;  i <= Schedule.Count; i++)
             {
                 if (i == Schedule.Count)
                 {
                     Countdown = TimeSpan.Zero;
                     LabelDesc = "End";
                     LabelRoom = "";
+                    if (!Hiding)
+                    {
+                        Hiding = true;
+                        FadeOutWindow();
+                    }
                     break;
                 }
 
@@ -154,6 +161,12 @@ namespace MYTGS
                     LabelRoom = Schedule[i].Roomcode;
                     break;
                 }
+            }
+
+            if (i != Schedule.Count && Hiding)
+            {
+                Hiding = false;
+                FadeInWindow();
             }
 
             if (HideOnFullscreen && IsForegroundFullScreen(System.Windows.Forms.Screen.FromHandle(new WindowInteropHelper(this).Handle), true))

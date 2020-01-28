@@ -5,14 +5,66 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:MYTGS"
         mc:Ignorable="d"
-        Title="TimetableClock" Height="53.274" Width="190.393" ShowInTaskbar="False" Topmost="True" WindowStartupLocation="CenterScreen" ResizeMode="NoResize" WindowStyle="None" AllowsTransparency="True" Background="White">
+        Title="TimetableClock" ShowInTaskbar="False" Topmost="True" WindowStartupLocation="CenterScreen" ResizeMode="NoResize" WindowStyle="None" AllowsTransparency="True" Width="400" Height="400" Loaded="Window_Loaded" 
+        Icon="Resources/logo.ico">
 
-    <Grid>
-        <Grid.Background>
-            <ImageBrush ImageSource="Resources/Background.png" Stretch="UniformToFill"/>
-        </Grid.Background>
-        <Label x:Name="DescLabel" FontSize="16" FontWeight="Bold" Content="{Binding LabelDesc, FallbackValue=Go to English}" HorizontalAlignment="Left" VerticalAlignment="Top" Foreground="White"/>
-        <Label x:Name="Noticeme" FontSize="16" FontWeight="Bold" HorizontalAlignment="Left" VerticalAlignment="Bottom" Content="{Binding CountDownStr, FallbackValue=00:00:00}" Foreground="White"/>
-        <Label x:Name="RoomLabel" Content="{Binding LabelRoom, FallbackValue=CE14}" FontSize="16" FontWeight="Bold" VerticalAlignment="Bottom" HorizontalAlignment="Right" Foreground="White"/>
+    <Grid x:Name="ContentGrid" MouseEnter="Grid_MouseEnter" VerticalAlignment="Bottom" HorizontalAlignment="Right" MouseDown="ContentGrid_MouseDown">
+        <ContentControl x:Name="ContentCtrl">
+            
+        </ContentControl>
+        <local:DefaultClock x:Name="DefClock" VerticalAlignment="Bottom" HorizontalAlignment="Right">
+            <local:DefaultClock.Style>
+                <Style TargetType="{x:Type local:DefaultClock}">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding ElementName=ContentCtrl, Path=Content}" Value="{x:Null}">
+                            <Setter Property="Visibility" Value="Visible"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </local:DefaultClock.Style>
+        </local:DefaultClock>
+        <Grid>
+            <Grid.Style>
+                <Style TargetType="{x:Type Grid}">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding ElementName=ContentCtrl, Path=Content}" Value="{x:Null}">
+                            <Setter Property="Visibility" Value="Visible"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Grid.Style>
+            <Grid Height="250" Margin="0,0,0,60">
+                <Grid.Style>
+                    <Style TargetType="{x:Type Grid}">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding ShowTable}" Value="True">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Grid.Style>
+                <ListView ItemsSource="{Binding Schedule}">
+                    <ListView.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Height="50" HorizontalAlignment="Stretch" ToolTip="{Binding Path=Tooltip}" Background="#00555555">
+                                <Label Content="{Binding Path=Classcode}" HorizontalAlignment="Left"/>
+                                <Label Content="{Binding Path=Roomcode}" HorizontalAlignment="Right"/>
+                            </Grid>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                    <ListView.ItemContainerStyle>
+                        <Style TargetType="ListViewItem">
+                            <Setter Property="Padding" Value="0"/>
+                            <Setter Property="Margin" Value="0"/>
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                            <Setter Property="Height" Value="27"/>
+                        </Style>
+                    </ListView.ItemContainerStyle>
+                </ListView>
+            </Grid>
+        </Grid>
     </Grid>
 </Window>

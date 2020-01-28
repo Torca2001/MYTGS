@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Configuration;
 
 namespace MYTGS
 {
@@ -115,18 +116,27 @@ namespace MYTGS
         }
     }
 
-    struct EPRcollection
+    [SettingsSerializeAs(SettingsSerializeAs.Xml)]
+    public class EPRcollection
     {
         public DateTime Date;
         public int Day;
         public Dictionary<string, TimetablePeriod> Changes;
         public bool Errors; //Indicate if there were errors doing the parsing of this collection
 
-        public EPRcollection(DateTime date, Dictionary<string, TimetablePeriod> changes, int day)
+        public EPRcollection(DateTime date, Dictionary<string, TimetablePeriod> changes, int day, bool errors = false)
         {
             Date = date;
             Changes = changes;
             Day = day;
+            Errors = errors;
+        }
+
+        public EPRcollection()
+        {
+            Date = new DateTime();
+            Changes = new Dictionary<string, TimetablePeriod>();
+            Day = 0;
             Errors = false;
         }
     }

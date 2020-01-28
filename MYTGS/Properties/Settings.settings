@@ -2,8 +2,8 @@
 <SettingsFile xmlns="http://schemas.microsoft.com/VisualStudio/2004/01/settings" CurrentProfile="(Default)" GeneratedClassNamespace="MYTGS.Properties" GeneratedClassName="Settings">
   <Profiles />
   <Settings>
-    <Setting Name="TasksPath" Type="System.String" Scope="User">
-      <Value Profile="(Default)">%appdata%\MYTGS\Tasks</Value>
+    <Setting Name="AppPath" Type="System.String" Scope="User">
+      <Value Profile="(Default)">%appdata%\MYTGS\</Value>
     </Setting>
     <Setting Name="LastFetch" Type="System.DateTime" Scope="User">
       <Value Profile="(Default)">2019-04-21</Value>

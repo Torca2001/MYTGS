@@ -1,6 +1,9 @@
 ﻿using Newtonsoft.Json;
+using SQLite;
+using SQLiteNetExtensions.Attributes;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Drawing;
 
 namespace Firefly
@@ -17,6 +20,7 @@ namespace Firefly
         public string title{ get; set; }
         public DateTime setDate{ get; set; }
         public DateTime dueDate{ get; set; }
+
         public Principal setter{ get; set; }
         public bool archived{ get; set; }
         public bool draft{ get; set; }
@@ -34,35 +38,47 @@ namespace Firefly
         public float totalMarkOutOf{ get; set; }
         public float mark{ get; set; }
         public string descriptionPageUrl{ get; set; }
+
         public Principal[] coowners{ get; set; }
+
         public FileAttachments[] fileAttachments{ get; set; }
+
         public PageAttachments[] pageAttachments{ get; set; }
+
         public Address[] addressees{ get; set; }
+
+        [OneToMany]
         public RecipientResponse[] recipientsResponses{ get; set; }
+
         public RecipientResponse[] allRecipientsResponses{ get; set; }
+
         public RecipientResponse[] recipientStatuses{ get; set; }
         public bool deleted{ get; set; }
         public bool ownershipRevoked{ get; set; }
         public bool setInTheFuture{ get; set; }
+
         [JsonProperty(Required = Required.Always)]
+        [PrimaryKey]
         public int id{ get; set; }
+
+
     }
 
     struct DescriptionDetails
     {
-        public int descriptionPageId;
-        public string htmlContent;
-        public bool containsQuestions;
-        public bool isSimpleDescription;
+        public int descriptionPageId { get; set; }
+        public string htmlContent { get; set; }
+        public bool containsQuestions { get; set; }
+        public bool isSimpleDescription { get; set; }
     }
 
     struct FileAttachments
     {
-        public int resourceId;
-        public string fileName;
-        public string fileType;
-        public string etag;
-        public DateTime dateCreated;
+        public int resourceId { get; set; }
+        public string fileName { get; set; }
+        public string fileType { get; set; }
+        public string etag { get; set; }
+        public DateTime dateCreated { get; set; }
     }
 
     struct PageAttachments
@@ -89,6 +105,8 @@ namespace Firefly
     struct RecipientResponse
     {
         public Principal principal { get; set; }
+
+        [OneToMany]
         public Response[] responses { get; set; }
     }
 
@@ -115,15 +133,15 @@ namespace Firefly
 
     struct AssessmentDetails
     {
-        public float assessmentMarkMax;
-        public int assessmentDetailsId;
-        public int assessmentType; //Sometimes a negative int???
+        public float assessmentMarkMax { get; set; }
+        public int assessmentDetailsId { get; set; }
+        public int assessmentType { get; set; } //Sometimes a negative int???
     }
 
     public struct Attendee
     {
-        public Principal principal;
-        public string role;
+        public Principal principal { get; set; }
+        public string role { get; set; }
     }
 
     struct AttendeePrincipal
@@ -155,13 +173,24 @@ namespace Firefly
 
     public struct FFEvent
     {
-        public string guid;
-        public string description;
-        public DateTime start;
-        public DateTime end;
-        public string location;
-        public string subject;
-        public Attendee[] attendees;
+        [PrimaryKey]
+        public string guid { get; set; }
+        public string description { get; set; }
+        
+        public DateTime start { get; set; }
+        public DateTime end { get; set; }
+        public string location { get; set; }
+        public string subject { get; set; }
+
+        [TextBlob("attendeesBlobbed")]
+        public Attendee[] attendees { get; set; }
+
+        [DefaultValue("")]
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.IgnoreAndPopulate)]
+        public string Teacher { get; set; }
+        
+        [JsonIgnore]
+        public string attendeesBlobbed { get; set; }
     }
 
     //Response object

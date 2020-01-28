@@ -90,13 +90,13 @@ namespace MYTGS
 
 
 
-        static public List<TimetablePeriod> ProcessForUse(Firefly.FFEvent[] events, DateTime day, bool EarlyFinish, bool EventsUptoDate)
+        static public List<TimetablePeriod> ProcessForUse(Firefly.FFEvent[] events, DateTime day, bool EarlyFinish, bool EventsUptoDate, bool FindForDay = true)
         {
             //If events not up to date then assume school day
             //If event is up to date and no events for the day Assume holiday
 
             List<TimetablePeriod> Modified = new List<TimetablePeriod>();
-            TimetablePeriod[] periods = ParseEventsToPeriods(EventsForDay(events, day));
+            TimetablePeriod[] periods = ParseEventsToPeriods(FindForDay ? EventsForDay(events, day) : events);
             
             for (int i = 0; i < 7; i++)
             {
@@ -106,6 +106,8 @@ namespace MYTGS
                     Modified.Add(periods[i]);
                 }
             }
+
+            day = day.ToLocalTime();
 
             int position = 0;
             if (EarlyFinish)
@@ -117,6 +119,7 @@ namespace MYTGS
                 position = 1;
             }
 
+            //Check if weekend for whether to fill
             if (day.DayOfWeek == DayOfWeek.Sunday || day.DayOfWeek == DayOfWeek.Saturday)
             {
                 //Don't fill in table only check for overlaps
@@ -125,30 +128,21 @@ namespace MYTGS
             }
             else
             {
-                //Fill in table with normal periods if not weekend
-                if (!EventsUptoDate)
+                //Confirm data is up to date and check whether there is any periods
+                //if data is updated and there is no periods don't fill in periods.
+                if (EventsUptoDate && Modified.Count == 0)
                 {
-                    periods = FillInTable(periods, day, EarlyFinish);
-                    Array.Resize(ref periods, 9);
-                    periods[7] = new TimetablePeriod(DateTimespan(day, RecessPeriods[position].Start), DateTimespan(day, RecessPeriods[position].End), RecessPeriods[position].description, "Break", "", false, 7);
-                    periods[8] = new TimetablePeriod(DateTimespan(day, LunchPeriods[position].Start), DateTimespan(day, LunchPeriods[position].End), LunchPeriods[position].description, "Break", "", false, 8);
-                    periods = OverlapCheck(periods);
-                    return periods.ToList();
+                    //Don't add breaks assume day off/holiday
+                    return Modified;
                 }
-                else
-                {
-                    if (Modified.Count == 0)
-                    {
-                        //Don't add breaks assume day off/holiday
-                        return Modified;
-                    }
-                    periods = FillInTable(periods, day, EarlyFinish);
-                    Array.Resize(ref periods, 9);
-                    periods[7] = new TimetablePeriod(DateTimespan(day, RecessPeriods[position].Start), DateTimespan(day, RecessPeriods[position].End), RecessPeriods[position].description, "Break", "", false, 7);
-                    periods[8] = new TimetablePeriod(DateTimespan(day, LunchPeriods[position].Start), DateTimespan(day, LunchPeriods[position].End), LunchPeriods[position].description, "Break", "", false, 8);
-                    periods = OverlapCheck(periods);
-                    return periods.ToList();
-                }
+
+                //Fill in table with appropriate data for day
+                periods = FillInTable(periods, day, EarlyFinish);
+                Array.Resize(ref periods, 9);
+                periods[7] = new TimetablePeriod(DateTimespan(day, RecessPeriods[position].Start), DateTimespan(day, RecessPeriods[position].End), RecessPeriods[position].description, "Recess", "", false, 7);
+                periods[8] = new TimetablePeriod(DateTimespan(day, LunchPeriods[position].Start), DateTimespan(day, LunchPeriods[position].End), LunchPeriods[position].description, LunchPeriods[position].description, "", false, 8);
+                periods = OverlapCheck(periods);
+                return periods.ToList();
             }
             
         }
@@ -177,7 +171,7 @@ namespace MYTGS
             dd = dd.AddMinutes(tt.Minutes - dd.Minute);
             dd = dd.AddSeconds(tt.Seconds - dd.Second);
             dd = dd.AddMilliseconds(-dd.Millisecond);
-            return dd.ToUniversalTime();
+            return dd;
         }
 
         //Create period table for the day
@@ -201,7 +195,7 @@ namespace MYTGS
                     Match match = reg.Match(item.guid);
                     if (match.Success)
                     {
-                        table[Convert.ToInt16(match.Groups[3].Value)] = new TimetablePeriod(item.start, item.end, item.subject, match.Groups[1].ToString(), item.location, true, Convert.ToInt16(match.Groups[3].Value));
+                        table[Convert.ToInt16(match.Groups[3].Value)] = new TimetablePeriod(item.start.ToLocalTime(), item.end.ToLocalTime(), item.subject, match.Groups[1].ToString(), item.location, true, Convert.ToInt16(match.Groups[3].Value), item.Teacher);
                     }
                 }
                 catch
@@ -257,14 +251,14 @@ namespace MYTGS
 
     public struct TimetablePeriod
     {
-        public DateTime Start;
-        public DateTime End;
-        public string Description;
-        public string Classcode;
-        public string Roomcode;
-        public bool GotoPeriod;
-        public int period;
-        public string Teacher;
+        public DateTime Start { get; set; }
+        public DateTime End { get; set; }
+        public string Description { get; set; }
+        public string Classcode { get; set; }
+        public string Roomcode { get; set; }
+        public bool GotoPeriod { get; set; }
+        public int period { get; set; }
+        public string Teacher { get; set; }
 
         public TimetablePeriod(DateTime start, DateTime end, string description, string classcode, string roomcode, bool gotoPeriod, int period)
         {
@@ -278,6 +272,25 @@ namespace MYTGS
             this.period = period;
         }
 
+        public TimetablePeriod(DateTime start, DateTime end, string description, string classcode, string roomcode, bool gotoPeriod, int period, string teacher)
+        {
+            Start = start;
+            End = end;
+            Description = description;
+            Classcode = classcode;
+            Roomcode = roomcode;
+            GotoPeriod = gotoPeriod;
+            Teacher = teacher;
+            this.period = period;
+        }
+
+        public string Tooltip
+        {
+            get
+            {
+                return Start.ToShortTimeString() + " - " + End.ToShortTimeString() + " " + Description + " " + Teacher;
+            }
+        }
     }
 
     public struct BreakPeriod

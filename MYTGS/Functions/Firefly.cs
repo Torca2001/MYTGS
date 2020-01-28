@@ -33,6 +33,7 @@ namespace Firefly
         private string schoolUrl = "";
         private string schoolName;
         private readonly bool _offlineMode = false;
+        private bool unauthorised = false;
         public Dictionary<string, FullTask> AllTasks = new Dictionary<string, FullTask>();
         //Event when Logged in
         public event EventHandler OnLogin;
@@ -53,6 +54,7 @@ namespace Firefly
         public string SchoolUrl { get => schoolUrl; }
         public string SchoolName { get => schoolName; }
         public bool OfflineMode { get => _offlineMode; }
+        public bool Unauthorised { get => unauthorised; }
         //Unread messages list
         public Dictionary<int, List<int>> UnReadList = new Dictionary<int, List<int>>();
         //List of all tasks for logged in user
@@ -170,7 +172,7 @@ namespace Firefly
         public bool LoadKey()
         {
             //Make sure user isn't already logged in or invalid file
-            if (LoggedIn || !File.Exists(Path))
+            if (LoggedIn || !KeyAvailable())
                 return false;
             string tmp = File.ReadAllText(Path);
             SSOResponse resp = SSO(tmp);
@@ -183,6 +185,14 @@ namespace Firefly
                 return true;
             }
             return false;
+        }
+
+        public bool KeyAvailable()
+        {
+            if (!File.Exists(Path))
+                return false;
+            string tmp = File.ReadAllText(Path);
+            return tmp.Length > 5;
         }
 
         private void SaveKey()
@@ -212,7 +222,7 @@ namespace Firefly
         public int[] GetIds(DateTime date)
         {
             //Fail if not logged in
-            if (!loggedIn && OfflineMode)
+            if (!loggedIn)
             {
                 return null;
             }
@@ -254,7 +264,7 @@ namespace Firefly
 
         public FullTask[] GetAllTasksByIds(int[] Ids)
         {
-            if (!OfflineMode && !loggedIn)
+            if (!loggedIn)
             {
                 return null;
             }
@@ -290,20 +300,20 @@ namespace Firefly
         //Calendar Events
         public FFEvent[] GetEvents(DateTime start, DateTime end)
         {
-            if (!OfflineMode && !loggedIn)
+            if (!loggedIn)
             {
                 return null;
             }
 
             try
             {
-            JsonSerializerSettings jsonset = new JsonSerializerSettings
-            {
-                DateFormatString = "yyyy'-'MM'-'dd'T'HH':'mm':'ss'Z'"
-            };
+                JsonSerializerSettings jsonset = new JsonSerializerSettings
+                {
+                    DateFormatString = "yyyy'-'MM'-'dd'T'HH':'mm':'ss'Z'"
+                };
                 string strJson ="data=query Query{events(for_guid:\"" + guid + "\",start:" + JsonConvert.SerializeObject(start,jsonset) + ",end:" + JsonConvert.SerializeObject(end, jsonset) + "){guid,description,start,end,location,subject,attendees{principal{guid,name,sort_key,group{guid,name,sort_key,personal_colour}},role}}}";
-            //"data=query Query{events(for_guid:\"" + Guid + "\",start: \"2019-04-29T14:00:00Z\",end:\"2019-05-010T15:00:00Z\"){guid,description,start,end,location,subject,attendees{principal{guid,name,sort_key,group{guid,name,sort_key,personal_colour}},role}}}";
-            byte[] data = Encoding.ASCII.GetBytes(strJson);
+                //"data=query Query{events(for_guid:\"" + Guid + "\",start: \"2019-04-29T14:00:00Z\",end:\"2019-05-010T15:00:00Z\"){guid,description,start,end,location,subject,attendees{principal{guid,name,sort_key,group{guid,name,sort_key,personal_colour}},role}}}";
+                byte[] data = Encoding.ASCII.GetBytes(strJson);
                 WebRequest request = WebRequest.Create(SchoolUrl + @"/_api/1.0/graphql?ffauth_device_id=" + DeviceID + "&ffauth_secret=" + Token);
                 request.Method = "POST";
                 request.ContentType = "application/x-www-form-urlencoded; charset=UTF-8";
@@ -319,12 +329,24 @@ namespace Firefly
                 {
                     html = reader.ReadToEnd();
                 }
-            FFEvent[] Events;
-            Events = JsonConvert.DeserializeObject<Data>(html, new JsonSerializerSettings
-            {
-                NullValueHandling = NullValueHandling.Ignore,
-                MissingMemberHandling = MissingMemberHandling.Ignore,
-            }).data.events;
+                
+                FFEvent[] Events;
+                Events = JsonConvert.DeserializeObject<Data>(html, new JsonSerializerSettings
+                {
+                    NullValueHandling = NullValueHandling.Ignore,
+                    MissingMemberHandling = MissingMemberHandling.Ignore,
+                }).data.events;
+
+                //Iterate through all events
+                for (int i = 0; i < Events.Length; i++)
+                {
+                    //Check if there is a teacher assigned
+                    if (Events[i].attendees.Length > 0 && Events[i].attendees[0].role == "Chairperson")
+                    {
+                        Events[i].Teacher = Events[i].attendees[0].principal.name.Trim();
+                    }
+                }
+
                 return Events;
             }
             catch(Exception e)
@@ -405,6 +427,33 @@ namespace Firefly
             }
         }
 
+        public bool Logout()
+        {
+            if (!loggedIn)
+            {
+                return false;
+            }
+
+            try
+            {
+                // /profilepic.aspx?guid= &size=regular
+                using (WebClient webClient = new WebClient())
+                {
+                    string res = webClient.DownloadString(SchoolUrl + @"/login/api/deletetoken?app_id=android_tasks&ffauth_device_id=" + DeviceID + "&ffauth_secret=" + Token);
+                    if (res == "OK")
+                    {
+                        //Request was accepted
+                        return true;
+                    }
+                }
+            }
+            catch
+            {
+                
+            }
+            return false;
+        }
+
         public Response[] GetResponseForID(int ID)
         {
             if (!loggedIn)
@@ -435,7 +484,7 @@ namespace Firefly
         private FullTask[] GetFiftyTasksByIds(int[] FiftyIds)
         {
             //max task id size is 50 
-            if (OfflineMode || !loggedIn)
+            if (!loggedIn)
             {
                 return null;
             }
@@ -493,18 +542,11 @@ namespace Firefly
             return results;
         }
 
-
-
         private void LoginWindow_OnResult(object sender, Login.OnResultEventArgs e)
         {
             //if successful login and double check
             SSOResponse resp = SSO(e.Token);
-            if (OfflineMode)
-            {
-                //How did the login screen even fire....
-                loggedIn = true;
-            }
-            else if (e.Result && resp.valid)
+            if (e.Result && resp.valid)
             {
                 //Set variables
                 SSOApply(resp);
@@ -549,6 +591,7 @@ namespace Firefly
                 if (e.Message.StartsWith("The remote name could not be resolved"))
                 {
                     logger.Info(e, "SSO No Network Connection");
+                    unauthorised = false;
                     return new SSOResponse(false);
                 }
                 else if (e.Message.StartsWith("The remote server returned an error: (401) Unauthorized"))
@@ -556,6 +599,7 @@ namespace Firefly
                     Console.WriteLine(e.Message);
                     loggedIn = false;
                     logger.Warn(e, "SSO Token Invalid");
+                    unauthorised = true;
                 }
                 return new SSOResponse(false);
             }

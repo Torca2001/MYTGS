@@ -25,13 +25,13 @@ namespace MYTGS.Properties {
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("%appdata%\\MYTGS\\Tasks")]
-        public string TasksPath {
+        [global::System.Configuration.DefaultSettingValueAttribute("%appdata%\\MYTGS\\")]
+        public string AppPath {
             get {
-                return ((string)(this["TasksPath"]));
+                return ((string)(this["AppPath"]));
             }
             set {
-                this["TasksPath"] = value;
+                this["AppPath"] = value;
             }
         }
         

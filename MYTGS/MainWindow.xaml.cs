@@ -29,6 +29,7 @@ namespace MYTGS
         Dictionary<int,Firefly.FullTask> Tasks = new Dictionary<int,Firefly.FullTask>();
         DispatcherTimer TenTimer = new DispatcherTimer();
         TimetableClock ClockWindow = new TimetableClock();
+        public List<TimetablePeriod> ClockSchedule { get => ClockWindow.Schedule; }
 
         public event PropertyChangedEventHandler PropertyChanged;
         System.Windows.Forms.NotifyIcon nIcon = new System.Windows.Forms.NotifyIcon();
@@ -41,15 +42,25 @@ namespace MYTGS
 
         public MainWindow()
         {
+            //Hook into program terminating to start safe shutdown
             Application.Current.SessionEnding += Current_SessionEnding;
+            ClockWindow.PropertyChanged += ClockWindow_PropertyChanged;
+
             InitializeEventDB("Trinity");
+            //Loads data about last time DB was updated
+            LoadEventInfo("Trinity");
             LoadSettings();
+
+
             //InitializeTasksDB("Trinity");
             
             // 10 minutes in milliseconds
             TenTimer.Interval = TimeSpan.FromMinutes(10);
             TenTimer.Tick += TenTimer_Tick;
             InitializeComponent(); //Initialize WPF Window and objects
+
+            eprbrowser.NavigateToString("<p>EPR Not Loaded </p>");
+
             if (System.Deployment.Application.ApplicationDeployment.IsNetworkDeployed)
                 UpdateVerLabel.Content = "Updates V: " + System.Deployment.Application.ApplicationDeployment.CurrentDeployment.CurrentVersion;
             this.DataContext = this;
@@ -65,7 +76,7 @@ namespace MYTGS
             ClockWindow.Left = System.Windows.SystemParameters.WorkArea.Width - ClockWindow.Width;
             ClockWindow.Top = System.Windows.SystemParameters.WorkArea.Height - ClockWindow.Height;
 
-            List<TimetablePeriod> todayPeriods = Timetablehandler.ProcessForUse(DBGetDayEvents("Trinity", DateTime.Now), DateTime.UtcNow, false, false, false);
+            List<TimetablePeriod> todayPeriods = Timetablehandler.ProcessForUse(DBGetDayEvents("Trinity", DateTime.Now), DateTime.UtcNow, false, IsEventsUptoDate(4), false);
             todayPeriods = EPRCheck(LastEPR, todayPeriods);
             ClockWindow.SetSchedule(todayPeriods);
 
@@ -88,17 +99,19 @@ namespace MYTGS
                     offlineMode = true;
                     if (FF.Unauthorised)
                     {
-                        DisplayMsg("App Unauthorised");
+                        DisplayMsg("App Unauthorised - Login Again");
+                        MessageGrid.MouseDown += MessageLogin;
                     }
                     else
                     {
-                        DisplayMsg("No connection");
+                        DisplayMsg("No connection - Restart to go Online");
+                        MessageGrid.MouseDown += NoConnectionRestart;
                     }
                 }
                 else
                 {
-                    DisplayMsg("Please Login", Brushes.Orange);
-                    FF.LoginUI();
+                    DisplayMsg("Please Login", new SolidColorBrush(Color.FromRgb(0x4E, 0x73, 0xDF)));
+                    MessageGrid.MouseDown += MessageLogin;
                 }
             }
             TenTimer.Start();
@@ -106,6 +119,35 @@ namespace MYTGS
             StartupCheckBox.IsChecked = IsApplicationInStartup();
             StartupCheckBox.Checked += StartupCheckBox_Checked;
 
+        }
+
+        private void MessageLogin(object sender, MouseButtonEventArgs e)
+        {
+            FF.LoginUI();
+        }
+
+        private void NoConnectionRestart(object sender, MouseButtonEventArgs e)
+        {
+            if ( MessageBox.Show("Restart application to attempt to go on, you sure?", "Restart Application", MessageBoxButton.YesNo) == MessageBoxResult.Yes)
+            {
+                logger.Info("User restarting to go online");
+                safeclose = true;
+                System.Windows.Forms.Application.Restart();
+                Close();
+            }
+        }
+
+        private void ClockWindow_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            if (PropertyChanged != null && e.PropertyName == "Schedule")
+                PropertyChanged(this, new PropertyChangedEventArgs("ClockSchedule"));
+        }
+
+        //Returns whether planner events are up to date givening option of accetable leniance in how dated data can be
+        private bool IsEventsUptoDate(int days)
+        {
+            DateTime temp = FFEventsLastUpdated.AddDays(days);
+            return DateTime.UtcNow < temp;
         }
 
         private void Current_SessionEnding(object sender, SessionEndingCancelEventArgs e)
@@ -140,6 +182,7 @@ namespace MYTGS
                 }
                 logger.Info("Successfully loaded " + loadedtasks + " tasks");
             }
+            Tasks = Tasks.OrderBy(p => p.Value.dueDate).Reverse().ToDictionary(k => k.Key, k => k.Value);
         }
 
         private void TenTimer_Tick(object sender, EventArgs e)
@@ -184,6 +227,8 @@ namespace MYTGS
             logger.Info("Login successful!");
             offlineMode = false;
             HideMsg();
+            //Unbind hook if it exists
+            MessageGrid.MouseDown -= MessageLogin;
 
             StatusLabel.Dispatcher.Invoke(new Action(() => {
                 StatusLabel.Content = "Welcome " + FF.Name;
@@ -203,7 +248,7 @@ namespace MYTGS
             string EPRstr = FF.EPR();
             Dispatcher.Invoke(() => {
 
-                eprbrowser.NavigateToString("<html><head><meta http-equiv=\"X-UA-Compatible\" content=\"IE=10\"><style>table {width: 100%; border: 1px solid #333; border-collapse: collapse !important;}td {border-right: 1px solid #333; padding: 0.375rem;} tr:not(:last-child) {border-bottom: 1px solid #ccc;}</style></head><body>" + EPRstr + "</body></html>");
+                eprbrowser.NavigateToString("<html><head><meta http-equiv=\"X-UA-Compatible\" content=\"IE=10\"><style>table {width: 100%; border: 1px solid #333; border-collapse: collapse !important;}td {border-right: 1px solid #333; padding: 0.375rem;} tr:not(:last-child) {border-bottom: 1px solid #ccc;}</style></head><body scroll=\"no\">" + EPRstr + "</body></html>");
                 EmailLabel.Content = FF.Email;
                 IDLabel.Content = FF.Username;
                 UserImage.Source = FF.GetUserImage();
@@ -217,6 +262,8 @@ namespace MYTGS
             {
                 DBUpdateEvents("Trinity", Events, DateTime.UtcNow.AddDays(-15), DateTime.UtcNow.AddDays(15));
             }
+            FFEventsLastUpdated = DateTime.UtcNow;
+
 
             foreach (Firefly.FFEvent item in DBGetAllEvents("Trinity"))
             {
@@ -404,7 +451,7 @@ namespace MYTGS
             RemoveApplicationFromStartup();
         }
 
-        private void DisplayMsg(string msg, Brush background = null, Brush foreeground = null)
+        private void DisplayMsg(string msg, Brush background = null, Brush foreground = null)
         {
 
             if (!Dispatcher.CheckAccess()) // CheckAccess returns true if you're on the dispatcher thread
@@ -413,7 +460,7 @@ namespace MYTGS
                     MessageGrid.Visibility = Visibility.Visible;
                     MessageLabel.Content = msg;
                     MessageGrid.Background = background ?? Brushes.Red;
-                    MessageLabel.Foreground = background ?? Brushes.White;
+                    MessageLabel.Foreground = foreground ?? Brushes.White;
                 });
                 return;
             }
@@ -422,7 +469,7 @@ namespace MYTGS
                 MessageGrid.Visibility = Visibility.Visible;
                 MessageLabel.Content = msg;
                 MessageGrid.Background = background ?? Brushes.Red;
-                MessageLabel.Foreground = background ?? Brushes.White;
+                MessageLabel.Foreground = foreground ?? Brushes.White;
             }
         }
 
@@ -509,6 +556,42 @@ namespace MYTGS
         {
             UpdateButton.IsEnabled = false;
             UpdateApplication();
+        }
+
+        private void Eprbrowser_LoadCompleted(object sender, System.Windows.Navigation.NavigationEventArgs e)
+        {
+            eprbrowser.Height = ((dynamic)eprbrowser.Document).Body.parentElement.scrollHeight;
+        }
+
+        private void Button_Click(object sender, RoutedEventArgs e)
+        {
+            safeclose = true;
+            Application.Current.Shutdown();
+        }
+
+        private void Button_Click_1(object sender, RoutedEventArgs e)
+        {
+            switch (MessageBox.Show("Do you want to delete all saved user data as well?", "Logout - Delete User Data", MessageBoxButton.YesNoCancel))
+            {
+                case MessageBoxResult.Yes:
+                    logger.Info("User logging out - Deleting user data");
+                    FF.Logout();
+                    DBWipe("Trinity");
+
+                    safeclose = true;
+                    System.Windows.Forms.Application.Restart();
+                    Close();
+                    break;
+
+                case MessageBoxResult.No:
+                    logger.Info("User logging out - Keeping user data");
+                    FF.Logout();
+
+                    safeclose = true;
+                    System.Windows.Forms.Application.Restart();
+                    Close();
+                    break;
+            }
         }
     }
 }

@@ -7,11 +7,28 @@ using System.Threading.Tasks;
 using SQLite;
 using SQLiteNetExtensions.Extensions;
 using Firefly;
+using System.ComponentModel;
+using Newtonsoft.Json;
 
 namespace MYTGS
 {
     public partial class MainWindow 
     {
+        public DateTime FFEventsLastUpdated
+        {
+            get => ffEventsLastUpdated;
+            set
+            {
+                ffEventsLastUpdated = value;
+                if (PropertyChanged != null)
+                {
+                    PropertyChanged(this, new PropertyChangedEventArgs("FFEventsLastUpdated"));
+                }
+                DBUpdateItem("Trinity", new SettingsItem("FFEventsLastUpdated", JsonConvert.SerializeObject(value)));
+            }
+        }
+        private DateTime ffEventsLastUpdated { get; set; }
+
         private void InitializeEventDB(string school)
         {
             var databasePath = Path.Combine(Environment.ExpandEnvironmentVariables((string)Properties.Settings.Default["AppPath"]), school + ".db");
@@ -19,6 +36,37 @@ namespace MYTGS
             using (SQLiteConnection db = new SQLiteConnection(databasePath))
             {
                 db.CreateTable<FFEvent>();
+                db.CreateTable<SettingsItem>();
+            }
+        }
+
+        public string GetLastEventUpdate(string school, string Name)
+        {
+            var databasePath = Path.Combine(Environment.ExpandEnvironmentVariables((string)Properties.Settings.Default["AppPath"]), school + ".db");
+
+            using (SQLiteConnection db = new SQLiteConnection(databasePath))
+            {
+                TableQuery<SettingsItem> results = db.Table<SettingsItem>().Where(s => s.name == Name);
+                if (results.Count() > 0)
+                {
+                    return results.First().value;
+                }
+                else
+                {
+                    return "";
+                }
+            }
+        }
+
+        private void LoadEventInfo(string school)
+        {
+            try
+            {
+                ffEventsLastUpdated = JsonConvert.DeserializeObject<DateTime>(GetLastEventUpdate(school, "FFEventsLastUpdated"));
+            }
+            catch
+            {
+                ffEventsLastUpdated = new DateTime();
             }
         }
 
@@ -29,6 +77,16 @@ namespace MYTGS
             using (SQLiteConnection db = new SQLiteConnection(databasePath))
             {
                 db.InsertWithChildren(obj);
+            }
+        }
+
+        private void DBUpdateItem(string school, object obj)
+        {
+            var databasePath = Path.Combine(Environment.ExpandEnvironmentVariables((string)Properties.Settings.Default["AppPath"]), school + ".db");
+
+            using (SQLiteConnection db = new SQLiteConnection(databasePath))
+            {
+                db.InsertOrReplaceWithChildren(obj);
             }
         }
 
@@ -82,6 +140,20 @@ namespace MYTGS
             {
                 //Return the table in array form
                 return db.Table<FFEvent>().ToArray();
+            }
+        }
+
+        private void DBWipe(string school)
+        {
+            //Get path to database
+            var databasePath = Path.Combine(Environment.ExpandEnvironmentVariables((string)Properties.Settings.Default["AppPath"]), school + ".db");
+
+            //Open connection
+            using (SQLiteConnection db = new SQLiteConnection(databasePath))
+            {
+                //Return the table in array form
+                db.DeleteAll<SettingsItem>();
+                db.DeleteAll<FFEvent>();
             }
         }
 

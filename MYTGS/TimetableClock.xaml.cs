@@ -24,7 +24,7 @@ namespace MYTGS
     /// </summary>
     public partial class TimetableClock : Window , INotifyPropertyChanged
     {
-        private List<TimetablePeriod> schedule = new List<TimetablePeriod>();
+        private List<TimetablePeriod> schedule { get; set; }
         public bool FadeOnHover = false;
         public bool HideOnFullscreen = false;
         public bool HideOnFinish = false;
@@ -99,6 +99,7 @@ namespace MYTGS
 
         public TimetableClock()
         {
+            Schedule = new List<TimetablePeriod>();
             InitializeComponent();
             this.DataContext = this;
 

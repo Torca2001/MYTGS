@@ -27,6 +27,14 @@ namespace MYTGS
             }
         }
 
+        public void Initalize()
+        {
+            using (SQLiteConnection db = new SQLiteConnection(databasePath))
+            {
+                db.CreateTable<SettingsItem>();
+            }
+        }
+
         public string GetSettings(string Name)
         {
             using (SQLiteConnection db = new SQLiteConnection(databasePath))
@@ -40,14 +48,6 @@ namespace MYTGS
                 {
                     return "";
                 }
-            }
-        }
-
-        public Settings()
-        {
-            using (SQLiteConnection db = new SQLiteConnection(databasePath))
-            {
-                db.CreateTable<SettingsItem>();
             }
         }
 

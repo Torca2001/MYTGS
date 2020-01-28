@@ -42,6 +42,12 @@ namespace MYTGS
 
         public MainWindow()
         {
+            if (!Directory.Exists(Environment.ExpandEnvironmentVariables((string)Properties.Settings.Default["AppPath"])))
+            {
+                Directory.CreateDirectory(Environment.ExpandEnvironmentVariables((string)Properties.Settings.Default["AppPath"]));
+            }
+            settings.Initalize();
+
             //Hook into program terminating to start safe shutdown
             Application.Current.SessionEnding += Current_SessionEnding;
             ClockWindow.PropertyChanged += ClockWindow_PropertyChanged;
@@ -50,10 +56,11 @@ namespace MYTGS
             //Loads data about last time DB was updated
             LoadEventInfo("Trinity");
             LoadSettings();
-
+            
+            FF.OnLogin += FF_OnLogin;
 
             //InitializeTasksDB("Trinity");
-            
+
             // 10 minutes in milliseconds
             TenTimer.Interval = TimeSpan.FromMinutes(10);
             TenTimer.Tick += TenTimer_Tick;
@@ -64,11 +71,18 @@ namespace MYTGS
             if (System.Deployment.Application.ApplicationDeployment.IsNetworkDeployed)
                 UpdateVerLabel.Content = "Updates V: " + System.Deployment.Application.ApplicationDeployment.CurrentDeployment.CurrentVersion;
             this.DataContext = this;
-            if (StartMinimized)
+            bool Firsttime = settings.GetSettings("FirstTime") == "";
+            if (StartMinimized && !Firsttime)
             {
                 ShowInTaskbar = false;
                 Hide();
             }
+            if (Firsttime)
+            {
+                AddApplicationToStartup();
+                settings.SaveSettings("FirstTime", "Not");
+            }
+
 
             //test.Content = JsonConvert.SerializeObject(DateTime.Now.ToUniversalTime());
             ClockWindow.Background = new SolidColorBrush(Color.FromArgb(0, 255, 255, 255));
@@ -91,7 +105,6 @@ namespace MYTGS
             LoadCachedTasks();
             
             logger.Info("Beginning Login checks");
-            FF.OnLogin += FF_OnLogin;
             if (!FF.LoadKey())
             {
                 if (FF.KeyAvailable())
@@ -111,6 +124,12 @@ namespace MYTGS
                 else
                 {
                     DisplayMsg("Please Login", new SolidColorBrush(Color.FromRgb(0x4E, 0x73, 0xDF)));
+
+                    //Open login ui automatically
+                    if (Firsttime)
+                    {
+                        FF.LoginUI();
+                    }
                     MessageGrid.MouseDown += MessageLogin;
                 }
             }

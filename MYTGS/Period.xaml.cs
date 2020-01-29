@@ -42,5 +42,10 @@ namespace MYTGS
                 TeacherLabel.Visibility = Visibility.Collapsed;
             }
         }
+
+        internal void SetValue(Action<MouseButtonEventArgs> onMouseDown, object openColourPicker)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

@@ -11,11 +11,26 @@ using System.ComponentModel;
 using Newtonsoft.Json;
 using System.Windows.Controls;
 using System.Windows.Media;
+using SQLiteNetExtensions.Attributes;
+using System.Windows.Forms;
 
 namespace MYTGS
 {
     public partial class MainWindow 
     {
+        public static List<Brush> ColourPallete = new List<Brush>()
+        {
+            Brushes.Cyan,
+            Brushes.DodgerBlue,
+            Brushes.Orange,
+            Brushes.Green,
+            Brushes.Tan,
+            Brushes.Magenta,
+            Brushes.Gray,
+            Brushes.Teal
+        };
+        private int colourpos = new Random().Next(0, ColourPallete.Count);
+
         public DateTime FFEventsLastUpdated
         {
             get => ffEventsLastUpdated;
@@ -39,6 +54,7 @@ namespace MYTGS
             {
                 db.CreateTable<FFEvent>();
                 db.CreateTable<SettingsItem>();
+                db.CreateTable<ColourItem>();
             }
         }
 
@@ -156,6 +172,7 @@ namespace MYTGS
                 //Return the table in array form
                 db.DeleteAll<SettingsItem>();
                 db.DeleteAll<FFEvent>();
+                db.DeleteAll<ColourItem>();
             }
         }
 
@@ -190,6 +207,52 @@ namespace MYTGS
             }
         }
 
+        private ColourItem DBGetColour(string school, string name)
+        {
+            //Get path to database
+            var databasePath = Path.Combine(Environment.ExpandEnvironmentVariables((string)Properties.Settings.Default["AppPath"]), school + ".db");
+
+            //Open connection
+            using (SQLiteConnection db = new SQLiteConnection(databasePath))
+            {
+                //Find all events that meet criteria and return array
+                var temp = db.Table<ColourItem>().Where(s => s.name == name);
+                if (temp.Count() > 0)
+                {
+                    ColourItem t = temp.First();
+                    t.value = JsonConvert.DeserializeObject<Brush>(t.valueBlobbed);
+                    return t;
+                }
+                else
+                {
+                    Brush random = ColourPallete[colourpos % ColourPallete.Count];
+                    colourpos++;
+                    DBInsert(school, new ColourItem(name, random));
+                    return new ColourItem(name, random);
+                }
+            }
+        }
+
+
+        struct ColourItem
+        {
+            [PrimaryKey, Unique]
+            public string name { get; set; }
+            
+            [TextBlob("valueBlobbed")]
+            public Brush value { get; set; }
+
+            public string valueBlobbed { get; set; }
+
+            public ColourItem(string Name, Brush Value)
+            {
+                name = Name;
+                value = Value;
+                valueBlobbed = "";
+            }
+
+        }
+
         Grid[] PlannerGrids = new Grid[7];
         private void GeneratePlanner(DateTime CurrentTime, int left = 3, int right = 3)
         {
@@ -199,7 +262,7 @@ namespace MYTGS
             {
                 TimetablePeriod[] dayperiods = Timetablehandler.ParseEventsToPeriods(DBGetDayEvents("Trinity", CurrentTime.AddDays(-left+i)));
 
-                Label first = new Label();
+                System.Windows.Controls.Label first = new System.Windows.Controls.Label();
                 first.FontSize = 14;
                 first.Foreground = new SolidColorBrush(Color.FromRgb(0x5D, 0x89, 0xFF));
                 first.HorizontalAlignment = System.Windows.HorizontalAlignment.Center;
@@ -218,17 +281,11 @@ namespace MYTGS
                         continue;
                     }
                     Period pp = new Period();
+                    pp.MouseDown += Pp_MouseDown;
                     pp.SetValue(Grid.ColumnProperty, i);
                     pp.SetValue(Grid.RowProperty, k+1);
                     pp.Margin = new System.Windows.Thickness(1);
-                    if (k % 2 == 0)
-                    {
-                        pp.Background = new SolidColorBrush(Color.FromRgb(0x5D, 0x89, 0xFF));
-                    }
-                    else
-                    {
-                        pp.Background = new SolidColorBrush(Color.FromRgb(0x2C, 0x51 ,0xB4));
-                    }
+                    pp.Background = DBGetColour("Trinity", dayperiods[k].Classcode).value;
                     pp.DataContext = dayperiods[k];
                     PlannerGrid.Children.Add(pp);
                 }
@@ -238,6 +295,21 @@ namespace MYTGS
 
         }
 
+        private void Pp_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            //((TimetablePeriod)((Period)sender).DataContext).Classcode
+            ColorDialog picker = new ColorDialog();
+            picker.AllowFullOpen = true;
+            Color ck = ((SolidColorBrush)((Period)sender).Background).Color;
+            picker.Color = System.Drawing.Color.FromArgb(ck.A, ck.R, ck.G, ck.B);
+            if (picker.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+            {
+                SolidColorBrush brush = new SolidColorBrush(Color.FromArgb(picker.Color.A, picker.Color.R, picker.Color.G, picker.Color.B));
+                Console.WriteLine("item " + ((TimetablePeriod)((Period)sender).DataContext).Classcode);
+                DBUpdateItem("Trinity" ,new ColourItem(((TimetablePeriod)((Period)sender).DataContext).Classcode, brush));
+                GeneratePlanner(PlannerDate);
+            }
 
+        }
     }
 }

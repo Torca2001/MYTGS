@@ -9,6 +9,8 @@ using SQLiteNetExtensions.Extensions;
 using Firefly;
 using System.ComponentModel;
 using Newtonsoft.Json;
+using System.Windows.Controls;
+using System.Windows.Media;
 
 namespace MYTGS
 {
@@ -187,6 +189,55 @@ namespace MYTGS
                 return db.Table<FFEvent>().Where(s => (s.start >= startUTC && s.end <= endUTC)).ToArray();
             }
         }
+
+        Grid[] PlannerGrids = new Grid[7];
+        private void GeneratePlanner(DateTime CurrentTime, int left = 3, int right = 3)
+        {
+            PlannerGrid.Children.Clear();
+
+            for (int i = 0; i <= left+right; i++)
+            {
+                TimetablePeriod[] dayperiods = Timetablehandler.ParseEventsToPeriods(DBGetDayEvents("Trinity", CurrentTime.AddDays(-left+i)));
+
+                Label first = new Label();
+                first.FontSize = 14;
+                first.Foreground = new SolidColorBrush(Color.FromRgb(0x5D, 0x89, 0xFF));
+                first.HorizontalAlignment = System.Windows.HorizontalAlignment.Center;
+                first.Content = CurrentTime.AddDays(-left + i).ToShortDateString() + " " + CurrentTime.AddDays(-left + i).DayOfWeek;
+                if (CurrentTime.AddDays(-left + i).ToShortDateString() == DateTime.Now.ToShortDateString())
+                {
+                    first.Foreground = Brushes.OrangeRed;
+                }
+                first.SetValue(Grid.ColumnProperty, i);
+                PlannerGrid.Children.Add(first);
+
+                for (int k = 0; k < 7; k++)
+                {
+                    if (dayperiods[k].Start == new DateTime())
+                    {
+                        continue;
+                    }
+                    Period pp = new Period();
+                    pp.SetValue(Grid.ColumnProperty, i);
+                    pp.SetValue(Grid.RowProperty, k+1);
+                    pp.Margin = new System.Windows.Thickness(1);
+                    if (k % 2 == 0)
+                    {
+                        pp.Background = new SolidColorBrush(Color.FromRgb(0x5D, 0x89, 0xFF));
+                    }
+                    else
+                    {
+                        pp.Background = new SolidColorBrush(Color.FromRgb(0x2C, 0x51 ,0xB4));
+                    }
+                    pp.DataContext = dayperiods[k];
+                    PlannerGrid.Children.Add(pp);
+                }
+
+            }
+
+
+        }
+
 
     }
 }

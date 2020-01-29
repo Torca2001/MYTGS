@@ -113,6 +113,20 @@ namespace MYTGS
             }
         }
 
+        public bool CombineDoubles
+        {
+            get => ClockWindow.CombineDoubles;
+            set
+            {
+                ClockWindow.CombineDoubles = value;
+                if (PropertyChanged != null)
+                {
+                    PropertyChanged(this, new PropertyChangedEventArgs("CombineDoubles"));
+                }
+                settings.SaveSettings("CombineDoubles", value == true ? "1" : "0");
+            }
+        }
+
         public EPRcollection LastEPR
         {
             get => lastEPR;
@@ -206,6 +220,19 @@ namespace MYTGS
                     break;
                 default:
                     StartMinimized = true;
+                    break;
+            }
+
+            switch (settings.GetSettings("CombineDoubles"))
+            {
+                case "1":
+                    CombineDoubles = true;
+                    break;
+                case "0":
+                    CombineDoubles = false;
+                    break;
+                default:
+                    CombineDoubles = true;
                     break;
             }
 

@@ -29,6 +29,9 @@ namespace MYTGS
         Dictionary<int,Firefly.FullTask> Tasks = new Dictionary<int,Firefly.FullTask>();
         DispatcherTimer TenTimer = new DispatcherTimer();
         TimetableClock ClockWindow = new TimetableClock();
+        DateTime PlannerDate = DateTime.Now;
+        bool PlannerCurrentDay = true;
+
         public List<TimetablePeriod> ClockSchedule { get => ClockWindow.Schedule; }
 
         public event PropertyChangedEventHandler PropertyChanged;
@@ -72,16 +75,6 @@ namespace MYTGS
                 UpdateVerLabel.Content = "Updates V: " + System.Deployment.Application.ApplicationDeployment.CurrentDeployment.CurrentVersion;
             this.DataContext = this;
             bool Firsttime = settings.GetSettings("FirstTime") == "";
-            if (StartMinimized && !Firsttime)
-            {
-                ShowInTaskbar = false;
-                Hide();
-            }
-            if (Firsttime)
-            {
-                AddApplicationToStartup();
-                settings.SaveSettings("FirstTime", "Not");
-            }
 
 
             //test.Content = JsonConvert.SerializeObject(DateTime.Now.ToUniversalTime());
@@ -89,6 +82,24 @@ namespace MYTGS
             ClockWindow.Show();
             ClockWindow.Left = System.Windows.SystemParameters.WorkArea.Width - ClockWindow.Width;
             ClockWindow.Top = System.Windows.SystemParameters.WorkArea.Height - ClockWindow.Height;
+            
+            if (StartMinimized && !Firsttime)
+            {
+                ShowInTaskbar = false;
+                Hide();
+            }
+            else
+            {
+                Show();
+            }
+
+            if (Firsttime)
+            {
+                AddApplicationToStartup();
+                settings.SaveSettings("FirstTime", "Not");
+            }
+
+            GeneratePlanner(DateTime.Now);
 
             List<TimetablePeriod> todayPeriods = Timetablehandler.ProcessForUse(DBGetDayEvents("Trinity", DateTime.Now), DateTime.UtcNow, false, IsEventsUptoDate(4), false);
             todayPeriods = EPRCheck(LastEPR, todayPeriods);
@@ -222,7 +233,6 @@ namespace MYTGS
 
             for (int i = 0; i < periods.Count; i++)
             {
-                Console.WriteLine("Period " + periods[i].period + " Class " + periods[i].Classcode + " Room: " + periods[i].Roomcode + " start: " + periods[i].Start.ToLocalTime() + " End: " + periods[i].End.ToLocalTime());
                 if (EPRlocalDate.Day == DateTime.Now.Day && EPRlocalDate.Month == DateTime.Now.Month && EPRlocalDate.Year == DateTime.Now.Year)
                 {
                     //Room change
@@ -282,25 +292,6 @@ namespace MYTGS
                 DBUpdateEvents("Trinity", Events, DateTime.UtcNow.AddDays(-15), DateTime.UtcNow.AddDays(15));
             }
             FFEventsLastUpdated = DateTime.UtcNow;
-
-
-            foreach (Firefly.FFEvent item in DBGetAllEvents("Trinity"))
-            {
-                DateTime startlocal = item.start.ToLocalTime();
-                DateTime endlocal = item.end.ToLocalTime();
-                //Item is in this month 
-                
-                PlannerStack.Dispatcher.Invoke(new Action(() =>
-                {
-                    Label lbl = new Label()
-                    {
-                        Content = "Start " + item.start.ToLocalTime() + " End " + item.end.ToLocalTime() + " Guid: " + item.guid + " Subject: " + item.subject + " Desc: " + item.description + " Loc: " + item.location
-                    };
-                    if (item.Teacher.Length > 0)
-                        lbl.Content += " Teacher: " + item.Teacher;
-                    PlannerStack.Items.Add(lbl);
-                }));
-            }
 
             List<TimetablePeriod> todayPeriods = Timetablehandler.ProcessForUse(DBGetDayEvents("Trinity", DateTime.Now), DateTime.UtcNow, false, true, false);
             
@@ -611,6 +602,35 @@ namespace MYTGS
                     Close();
                     break;
             }
+        }
+
+        private void PlannerGrid_KeyUp(object sender, KeyEventArgs e)
+        {
+            switch (e.Key)
+            {
+                case Key.Left:
+                    PlannerDate = PlannerDate.AddDays(e.KeyboardDevice.Modifiers == ModifierKeys.Shift ? -7 : -1);
+                    GeneratePlanner(PlannerDate);
+                    break;
+                case Key.Right:
+                    PlannerDate = PlannerDate.AddDays(e.KeyboardDevice.Modifiers == ModifierKeys.Shift ? 7 : 1);
+                    GeneratePlanner(PlannerDate);
+                    break;
+            }
+
+
+        }
+
+        private void Button_Click_2(object sender, RoutedEventArgs e)
+        {
+            PlannerDate = PlannerDate.AddDays(Keyboard.Modifiers == ModifierKeys.Shift ? -7 : -1);
+            GeneratePlanner(PlannerDate);
+        }
+
+        private void Button_Click_3(object sender, RoutedEventArgs e)
+        {
+            PlannerDate = PlannerDate.AddDays(Keyboard.Modifiers == ModifierKeys.Shift ? 7 : 1);
+            GeneratePlanner(PlannerDate);
         }
     }
 }

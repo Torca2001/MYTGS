@@ -8,7 +8,6 @@
         mc:Ignorable="d"
         Title="MYTGS" Height="450" Width="800" Closing="Window_Closing" 
         Icon="Resources/logo.ico">
-
     <Grid Background="#FF4E73DF">
         <Grid.RowDefinitions>
             <RowDefinition  Height="*"/>
@@ -160,8 +159,37 @@
                 <TabItem.Header>
                     <fa:SvgAwesome Icon="Regular_CalendarAlt" Width="27" Foreground="White"/>
                 </TabItem.Header>
-                <Grid Background="#FFE5E5E5" Margin="-2">
-                    <ListBox x:Name="PlannerStack" Background="{x:Null}" BorderBrush="{x:Null}">
+                <Grid Background="#FFE5E5E5" Margin="-2" KeyUp="PlannerGrid_KeyUp" Focusable="True">
+                    <Button Panel.ZIndex="1" Width="20" Height="20" HorizontalAlignment="Left" VerticalAlignment="Top" Click="Button_Click_2" Margin="0,5,0,0">
+                        <fa:SvgAwesome Icon="Solid_AngleLeft" />
+                    </Button>
+                    <Button HorizontalAlignment="Right" VerticalAlignment="Top" Panel.ZIndex="1" Width="20" Height="20" Click="Button_Click_3" Margin="0,5,0,0">
+                        <fa:SvgAwesome Icon="Solid_AngleRight"/>
+                    </Button>
+                    <Grid x:Name="PlannerGrid" MinHeight="417" MinWidth="744" KeyUp="PlannerGrid_KeyUp" Focusable="True">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="30"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                    </Grid>
+
+                    <ListBox x:Name="PlannerStack" Background="{x:Null}" BorderBrush="{x:Null}" Visibility="Hidden">
 
                     </ListBox>
                 </Grid>
@@ -215,6 +243,8 @@
                                         <RowDefinition Height="50px"/>
                                         <RowDefinition Height="50px"/>
                                         <RowDefinition Height="50px"/>
+                                        <RowDefinition Height="50px"/>
+                                        <RowDefinition Height="auto"/>
                                     </Grid.RowDefinitions>
                                     <Label Content="Hide on fullscreen" ToolTip="Clock will hide if the currently focused window is in fullscreen" Grid.Row="0" FontSize="16" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                                     <CheckBox Grid.Column="1" Grid.Row="0" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="50,0,0,0" IsChecked="{Binding HideOnFullscreen}"/>
@@ -226,8 +256,10 @@
                                     <TextBox Grid.Column="1" Grid.Row="2" Width="100" Height="40" HorizontalAlignment="Left" Text="{Binding Offset, Mode=TwoWay}" FontSize="20" Padding="0,5" Margin="8,0,0,0" HorizontalScrollBarVisibility="Disabled" MaxLength="7" MaxLines="1" PreviewTextInput="TextBox_PreviewTextInput" DataObject.Pasting="TextBoxPasting" PreviewLostKeyboardFocus="TextBox_PreviewLostKeyboardFocus"/>
 
                                     <Label Content="Hide on End" ToolTip="Clock will hide itself if there are no schedules periods for the day" Grid.Row="3" FontSize="16" HorizontalContentAlignment="Right" VerticalAlignment="Center"/>
-                                    <CheckBox Grid.Row="3" Grid.Column="1" Margin="50,0,0,0" VerticalAlignment="Center" IsChecked="{Binding HideOnFinish}" HorizontalAlignment="Left" />
+                                    <CheckBox Grid.Row="3" Grid.Column="1" Margin="50,0,0,0" VerticalAlignment="Center" IsChecked="{Binding HideOnFinish, Mode=TwoWay}" HorizontalAlignment="Left" />
 
+                                    <Label Content="Combine Doubles" ToolTip="Clock will check if there are doubles adding the total time together to display" Grid.Row="4" FontSize="16" HorizontalContentAlignment="Right" VerticalAlignment="Center"/>
+                                    <CheckBox Grid.Row="4" Grid.Column="1" Margin="50,0,0,0" VerticalAlignment="Center" IsChecked="{Binding CombineDoubles, Mode=TwoWay}" HorizontalAlignment="Left" />
                                 </Grid>
                             </Expander>
                         </StackPanel>

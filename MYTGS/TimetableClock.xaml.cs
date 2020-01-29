@@ -27,7 +27,21 @@ namespace MYTGS
         private List<TimetablePeriod> schedule { get; set; }
         public bool FadeOnHover = false;
         public bool HideOnFullscreen = false;
-        public bool HideOnFinish = false;
+        public bool CombineDoubles = false;
+        public bool HideOnFinish
+        {
+            get => hideOnFinish;
+            set
+            {
+                hideOnFinish = value;
+                if (value==false && Hiding)
+                {
+                    Hiding = false;
+                    FadeInWindow();
+                }
+            }
+        }
+        private bool hideOnFinish { get; set; }
         private bool Hiding = false;
         public int Offset { get; set; }
 
@@ -127,7 +141,7 @@ namespace MYTGS
                     Countdown = TimeSpan.Zero;
                     LabelDesc = "End";
                     LabelRoom = "";
-                    if (!Hiding)
+                    if (!Hiding && HideOnFinish)
                     {
                         Hiding = true;
                         FadeOutWindow();
@@ -149,7 +163,14 @@ namespace MYTGS
                     }
                     else if (Timetablehandler.CompareInBetween(Schedule[i].Start, Schedule[i].End, RN))
                     {
-                        Countdown = Schedule[i].End - RN;
+                        if (CombineDoubles && i+1 < Schedule.Count && Schedule[i].Classcode == Schedule[i+1].Classcode)
+                        {
+                            Countdown = Schedule[i+1].End - RN;
+                        }
+                        else
+                        {
+                            Countdown = Schedule[i].End - RN;
+                        }
                         LabelDesc = AutoDesc(Schedule[i]);
                         LabelRoom = Schedule[i].Roomcode;
                         break;
@@ -157,7 +178,14 @@ namespace MYTGS
                 }
                 else if (Timetablehandler.CompareInBetween(Schedule[i].Start, Schedule[i].End, RN))
                 {
-                    Countdown = Schedule[i].End - RN;
+                    if (CombineDoubles && i + 1 < Schedule.Count && Schedule[i].Classcode == Schedule[i + 1].Classcode)
+                    {
+                        Countdown = Schedule[i + 1].End - RN;
+                    }
+                    else
+                    {
+                        Countdown = Schedule[i].End - RN;
+                    }
                     LabelDesc = AutoDesc(Schedule[i]);
                     LabelRoom = Schedule[i].Roomcode;
                     break;
@@ -174,6 +202,7 @@ namespace MYTGS
             {
                 if (!AutoHide)
                 {
+                    Console.WriteLine("Hiding for fullscreen");
                     FadeOutWindow();
                     AutoHide = true;
                 }

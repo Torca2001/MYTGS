@@ -4,6 +4,7 @@ It is made to be a step up from my [original project](https://github.com/Torca20
 It integrates with Firefly Education's Api to display user's tasks 
 and performing caching of these. 
 It will also have an inbuilt version of the timetable clock.
+To install [Download](https://downloads.torca.xyz/mytgs/setup.exe) this.
 
 
 ## Firefly compatiblity 

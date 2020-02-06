@@ -7,8 +7,7 @@
         xmlns:local="clr-namespace:MYTGS"
         mc:Ignorable="d"
         Title="MYTGS" Height="450" Width="800" Closing="Window_Closing" 
-        Icon="Resources/logo.ico">
-
+        Icon="Resources/MYTGSIcon.ico">
     <Grid Background="#FF4E73DF">
         <Grid.RowDefinitions>
             <RowDefinition  Height="*"/>
@@ -48,69 +47,48 @@
                     <fa:SvgAwesome Icon="Solid_Home" Width="27" Foreground="White"/>
                 </TabItem.Header>
                 <Grid Background="#FFE5E5E5" Margin="-2">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="417"/>
-                                <RowDefinition Height="auto"/>
-                            </Grid.RowDefinitions>
-                            <Grid>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="100"/>
-                                    <RowDefinition Height="100"/>
-                                    <RowDefinition Height="*"/>
-                                    <RowDefinition Height="auto"/>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="100"/>
+                        <RowDefinition Height="100"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="auto"/>
 
-                                </Grid.RowDefinitions>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <Image Source="Resources/logo1.png" Grid.ColumnSpan="2" HorizontalAlignment="Left" VerticalAlignment="Top"/>
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Image Source="Resources/logo1.png" Grid.ColumnSpan="2" HorizontalAlignment="Left" VerticalAlignment="Top"/>
 
-                                <Grid Grid.Column="0" Grid.Row="3" Height="100" Background="#FF2C51B4" DataContext="{Binding ClockSchedule[1]}" ToolTip="{Binding Tooltip}">
-                                    <TextBlock Text="{Binding Description}" Foreground="White" VerticalAlignment="Top" Height="60" FontSize="14" TextWrapping="Wrap" Margin="5,0,0,0" />
-                                    <Label VerticalAlignment="Bottom" HorizontalAlignment="Right" Content="{Binding Roomcode}" Foreground="White" FontSize="14" />
-                                    <Label VerticalAlignment="Bottom" HorizontalAlignment="Left" Content="{Binding Classcode}" Foreground="White" FontSize="14" />
-                                </Grid>
-                                <Grid Grid.Column="1" Grid.Row="3" Height="100" Background="#FF5D89FF" DataContext="{Binding ClockSchedule[2]}" ToolTip="{Binding Tooltip}">
-                                    <TextBlock Text="{Binding Description}" Foreground="White" VerticalAlignment="Top" Height="60" FontSize="14" TextWrapping="Wrap" Margin="5,0,0,0" />
-                                    <Label VerticalAlignment="Bottom" HorizontalAlignment="Right" Content="{Binding Roomcode}" Foreground="White" FontSize="14" />
-                                    <Label VerticalAlignment="Bottom" HorizontalAlignment="Left" Content="{Binding Classcode}" Foreground="White" FontSize="14" />
-                                </Grid>
-                                <Grid Grid.Column="2" Grid.Row="3" Height="100" Background="#FF2C51B4" DataContext="{Binding ClockSchedule[4]}" ToolTip="{Binding Tooltip}">
-                                    <TextBlock Text="{Binding Description}" Foreground="White" VerticalAlignment="Top" Height="60" FontSize="14" TextWrapping="Wrap" Margin="5,0,0,0" />
-                                    <Label VerticalAlignment="Bottom" HorizontalAlignment="Right" Content="{Binding Roomcode}" Foreground="White" FontSize="14" />
-                                    <Label VerticalAlignment="Bottom" HorizontalAlignment="Left" Content="{Binding Classcode}" Foreground="White" FontSize="14" />
-                                </Grid>
-                                <Grid Grid.Column="3" Grid.Row="3" Height="100" Background="#FF5D89FF" DataContext="{Binding ClockSchedule[5]}" ToolTip="{Binding Tooltip}">
-                                    <TextBlock Text="{Binding Description}" Foreground="White" VerticalAlignment="Top" Height="60" FontSize="14" TextWrapping="Wrap" />
-                                    <Label VerticalAlignment="Bottom" HorizontalAlignment="Right" Content="{Binding Roomcode}" Foreground="White" FontSize="14" />
-                                    <Label VerticalAlignment="Bottom" HorizontalAlignment="Left" Content="{Binding Classcode}" Foreground="White" FontSize="14" />
-                                </Grid>
-                                <Grid Grid.Column="4" Grid.Row="3" Height="100" Background="#FF2C51B4" DataContext="{Binding ClockSchedule[7]}" ToolTip="{Binding Tooltip}">
-                                    <TextBlock Text="{Binding Description}" Foreground="White" VerticalAlignment="Top" Height="60" FontSize="14" TextWrapping="Wrap" Margin="5,0,0,0" />
-                                    <Label VerticalAlignment="Bottom" HorizontalAlignment="Right" Content="{Binding Roomcode}" Foreground="White" FontSize="14" />
-                                    <Label VerticalAlignment="Bottom" HorizontalAlignment="Left" Content="{Binding Classcode}" Foreground="White" FontSize="14" />
-                                </Grid>
-                                <Grid Grid.Column="5" Grid.Row="3" Height="100" Background="#FF5D89FF" DataContext="{Binding ClockSchedule[8]}" ToolTip="{Binding Tooltip}">
-                                    <TextBlock Text="{Binding Description}" Foreground="White" VerticalAlignment="Top" Height="60" FontSize="14" TextWrapping="Wrap" Margin="5,0,0,0" />
-                                    <Label VerticalAlignment="Bottom" HorizontalAlignment="Right" Content="{Binding Roomcode}" Foreground="White" FontSize="14" />
-                                    <Label VerticalAlignment="Bottom" HorizontalAlignment="Left" Content="{Binding Classcode}" Foreground="White" FontSize="14" />
-                                </Grid>
+                    <local:Period Grid.Column="0" Grid.Row="3" Height="100" Background="#FF2C51B4" DataContext="{Binding ClockSchedule[1]}" FontSize="14"/>
+                    <local:Period Grid.Column="1" Grid.Row="3" Height="100" Background="#FF5D89FF" DataContext="{Binding ClockSchedule[2]}" FontSize="14"/>
+                    <local:Period Grid.Column="2" Grid.Row="3" Height="100" Background="#FF2C51B4" DataContext="{Binding ClockSchedule[4]}" FontSize="14"/>
+                    <local:Period Grid.Column="3" Grid.Row="3" Height="100" Background="#FF5D89FF" DataContext="{Binding ClockSchedule[5]}" FontSize="14"/>
+                    <local:Period Grid.Column="4" Grid.Row="3" Height="100" Background="#FF2C51B4" DataContext="{Binding ClockSchedule[7]}" FontSize="14"/>
+                    <local:Period Grid.Column="5" Grid.Row="3" Height="100" Background="#FF5D89FF" DataContext="{Binding ClockSchedule[8]}" FontSize="14"/>
 
-                                <Label Grid.ColumnSpan="2" Content="Scroll down for EPR*" Grid.Column="4" HorizontalAlignment="Right" Foreground="#FF0A36FF" FontSize="14"/>
-                            </Grid>
+                    <Button Grid.Row="2" HorizontalAlignment="Left" VerticalAlignment="Bottom" Content="View EPR" Foreground="#FF008BFF" Margin="0" Width="90" Height="35" Click="Button_Click_4"/>
+                    <Grid Grid.Column="5" Grid.RowSpan="3">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <Label Content="EPR Changes" FontSize="16" HorizontalAlignment="Center" Foreground="#FF0097FF"/>
+                        <ScrollViewer Grid.Row="1" Margin="0,0,0,10" VerticalScrollBarVisibility="Auto">
+                            <ItemsControl ItemsSource="{Binding EPRChanges}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <local:Period FontSize="14" MinHeight="85" Background="#FF5D89FF"/>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
 
-                            <WebBrowser Grid.Row="1" x:Name="eprbrowser" ScrollViewer.VerticalScrollBarVisibility="Disabled" ScrollViewer.CanContentScroll="True" LoadCompleted="Eprbrowser_LoadCompleted" VerticalAlignment="Bottom"/>
-                        </Grid>
-                    </ScrollViewer>
-                    
-                    
+                    </Grid>
                 </Grid>
             </TabItem>
             <TabItem>
@@ -160,8 +138,37 @@
                 <TabItem.Header>
                     <fa:SvgAwesome Icon="Regular_CalendarAlt" Width="27" Foreground="White"/>
                 </TabItem.Header>
-                <Grid Background="#FFE5E5E5" Margin="-2">
-                    <ListBox x:Name="PlannerStack" Background="{x:Null}" BorderBrush="{x:Null}">
+                <Grid Background="#FFE5E5E5" Margin="-2" KeyUp="PlannerGrid_KeyUp" Focusable="True">
+                    <Button Panel.ZIndex="5" Width="20" Height="20" HorizontalAlignment="Left" VerticalAlignment="Top" Click="Button_Click_2" Margin="0,5,0,0" ToolTip="Hold Shift to jump a week">
+                        <fa:SvgAwesome Icon="Solid_AngleLeft" ToolTip="Hold Shift to jump a week"/>
+                    </Button>
+                    <Button HorizontalAlignment="Right" VerticalAlignment="Top" Panel.ZIndex="5" Width="20" Height="20" Click="Button_Click_3" Margin="0,5,0,0" ToolTip="Hold shift to jump a week">
+                        <fa:SvgAwesome Icon="Solid_AngleRight" ToolTip="Hold Shift to jump a week" />
+                    </Button>
+                    <Grid x:Name="PlannerGrid" MinHeight="417" MinWidth="744">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="30"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                    </Grid>
+
+                    <ListBox x:Name="PlannerStack" Background="{x:Null}" BorderBrush="{x:Null}" Visibility="Hidden">
 
                     </ListBox>
                 </Grid>
@@ -215,6 +222,8 @@
                                         <RowDefinition Height="50px"/>
                                         <RowDefinition Height="50px"/>
                                         <RowDefinition Height="50px"/>
+                                        <RowDefinition Height="50px"/>
+                                        <RowDefinition Height="auto"/>
                                     </Grid.RowDefinitions>
                                     <Label Content="Hide on fullscreen" ToolTip="Clock will hide if the currently focused window is in fullscreen" Grid.Row="0" FontSize="16" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                                     <CheckBox Grid.Column="1" Grid.Row="0" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="50,0,0,0" IsChecked="{Binding HideOnFullscreen}"/>
@@ -226,8 +235,10 @@
                                     <TextBox Grid.Column="1" Grid.Row="2" Width="100" Height="40" HorizontalAlignment="Left" Text="{Binding Offset, Mode=TwoWay}" FontSize="20" Padding="0,5" Margin="8,0,0,0" HorizontalScrollBarVisibility="Disabled" MaxLength="7" MaxLines="1" PreviewTextInput="TextBox_PreviewTextInput" DataObject.Pasting="TextBoxPasting" PreviewLostKeyboardFocus="TextBox_PreviewLostKeyboardFocus"/>
 
                                     <Label Content="Hide on End" ToolTip="Clock will hide itself if there are no schedules periods for the day" Grid.Row="3" FontSize="16" HorizontalContentAlignment="Right" VerticalAlignment="Center"/>
-                                    <CheckBox Grid.Row="3" Grid.Column="1" Margin="50,0,0,0" VerticalAlignment="Center" IsChecked="{Binding HideOnFinish}" HorizontalAlignment="Left" />
+                                    <CheckBox Grid.Row="3" Grid.Column="1" Margin="50,0,0,0" VerticalAlignment="Center" IsChecked="{Binding HideOnFinish, Mode=TwoWay}" HorizontalAlignment="Left" />
 
+                                    <Label Content="Combine Doubles" ToolTip="Clock will check if there are doubles adding the total time together to display" Grid.Row="4" FontSize="16" HorizontalContentAlignment="Right" VerticalAlignment="Center"/>
+                                    <CheckBox Grid.Row="4" Grid.Column="1" Margin="50,0,0,0" VerticalAlignment="Center" IsChecked="{Binding CombineDoubles, Mode=TwoWay}" HorizontalAlignment="Left" />
                                 </Grid>
                             </Expander>
                         </StackPanel>
@@ -274,6 +285,11 @@
                             </ListBox.ItemTemplate>
                         </ListBox>
                     </Grid>
+                </Grid>
+            </TabItem>
+            <TabItem x:Name="EPRTab" Visibility="Collapsed" >
+                <Grid Margin="-2">
+                    <WebBrowser x:Name="eprbrowser" VerticalAlignment="Bottom"/>
                 </Grid>
             </TabItem>
         </TabControl>

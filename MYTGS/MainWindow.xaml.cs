@@ -15,6 +15,10 @@ using System.Windows.Input;
 using System.Net;
 using System.ComponentModel;
 using System.Text.RegularExpressions;
+using mshtml;
+using System.Windows.Media.Imaging;
+using System.IO.Pipes;
+using System.Collections.ObjectModel;
 
 namespace MYTGS
 {
@@ -28,7 +32,14 @@ namespace MYTGS
         Firefly.Firefly FF { set; get; } = new Firefly.Firefly("MYTGS");
         Dictionary<int,Firefly.FullTask> Tasks = new Dictionary<int,Firefly.FullTask>();
         DispatcherTimer TenTimer = new DispatcherTimer();
+        DispatcherTimer UpdateTimer = new DispatcherTimer();
+        public ObservableCollection<TimetablePeriod> EPRChanges { get; set; } = new ObservableCollection<TimetablePeriod>();
         TimetableClock ClockWindow = new TimetableClock();
+        DateTime LastDayCheck = DateTime.Now;
+        DateTime PlannerDate = DateTime.Now;
+        int EPRWait = 0;
+        bool PlannerCurrentDay = true;
+
         public List<TimetablePeriod> ClockSchedule { get => ClockWindow.Schedule; }
 
         public event PropertyChangedEventHandler PropertyChanged;
@@ -48,11 +59,20 @@ namespace MYTGS
             }
             settings.Initalize();
 
+            NamedPipeServerStream pipeServer = new NamedPipeServerStream("MYTGS",
+               PipeDirection.InOut, 1, PipeTransmissionMode.Message, PipeOptions.Asynchronous);
+
+            // Wait for a connection
+            pipeServer.BeginWaitForConnection
+            (new AsyncCallback(HandleConnection), pipeServer);
+
             //Hook into program terminating to start safe shutdown
             Application.Current.SessionEnding += Current_SessionEnding;
             ClockWindow.PropertyChanged += ClockWindow_PropertyChanged;
 
             InitializeEventDB("Trinity");
+            InitializeCalendarDB("Trinity");
+            
             //Loads data about last time DB was updated
             LoadEventInfo("Trinity");
             LoadSettings();
@@ -64,6 +84,9 @@ namespace MYTGS
             // 10 minutes in milliseconds
             TenTimer.Interval = TimeSpan.FromMinutes(10);
             TenTimer.Tick += TenTimer_Tick;
+
+            UpdateTimer.Interval = TimeSpan.FromHours(6);
+            UpdateTimer.Tick += UpdateTimer_Tick;
             InitializeComponent(); //Initialize WPF Window and objects
 
             eprbrowser.NavigateToString("<p>EPR Not Loaded </p>");
@@ -72,16 +95,6 @@ namespace MYTGS
                 UpdateVerLabel.Content = "Updates V: " + System.Deployment.Application.ApplicationDeployment.CurrentDeployment.CurrentVersion;
             this.DataContext = this;
             bool Firsttime = settings.GetSettings("FirstTime") == "";
-            if (StartMinimized && !Firsttime)
-            {
-                ShowInTaskbar = false;
-                Hide();
-            }
-            if (Firsttime)
-            {
-                AddApplicationToStartup();
-                settings.SaveSettings("FirstTime", "Not");
-            }
 
 
             //test.Content = JsonConvert.SerializeObject(DateTime.Now.ToUniversalTime());
@@ -89,6 +102,24 @@ namespace MYTGS
             ClockWindow.Show();
             ClockWindow.Left = System.Windows.SystemParameters.WorkArea.Width - ClockWindow.Width;
             ClockWindow.Top = System.Windows.SystemParameters.WorkArea.Height - ClockWindow.Height;
+            
+            if (StartMinimized && !Firsttime)
+            {
+                ShowInTaskbar = false;
+                Hide();
+            }
+            else
+            {
+                Show();
+            }
+
+            if (Firsttime)
+            {
+                AddApplicationToStartup();
+                settings.SaveSettings("FirstTime", "Not");
+            }
+
+            GeneratePlanner(DateTime.Now);
 
             List<TimetablePeriod> todayPeriods = Timetablehandler.ProcessForUse(DBGetDayEvents("Trinity", DateTime.Now), DateTime.UtcNow, false, IsEventsUptoDate(4), false);
             todayPeriods = EPRCheck(LastEPR, todayPeriods);
@@ -98,8 +129,9 @@ namespace MYTGS
             menu.MenuItems.Add("Move", new EventHandler(MoveMenu_Click));
             menu.MenuItems.Add("Quit", new EventHandler(QuitMenu_Click));
             nIcon.ContextMenu = menu;
-            nIcon.Icon = Properties.Resources.logo;
+            nIcon.Icon = Properties.Resources.CustomIcon;
             nIcon.DoubleClick += HomeMenu_Click;
+            nIcon.MouseDown += NIcon_MouseDown;
             nIcon.Visible = true;
 
             LoadCachedTasks();
@@ -134,10 +166,40 @@ namespace MYTGS
                 }
             }
             TenTimer.Start();
-            
+            UpdateTimer.Start();
+            using (RegistryKey key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true))
+            {
+                if (System.Deployment.Application.ApplicationDeployment.IsNetworkDeployed && !IsApplicationInStartup())
+                {
+                    object k = key.GetValue("MYTGS App");
+                    if (k != null && ((string)k).Length > 5)
+                    {
+                        AddApplicationToStartup();
+                    }
+                }
+            }
             StartupCheckBox.IsChecked = IsApplicationInStartup();
             StartupCheckBox.Checked += StartupCheckBox_Checked;
 
+            UpdateCalendar("Trinity");
+            CheckForEarlyFinishes("Trinity");
+
+        }
+
+        private void UpdateTimer_Tick(object sender, EventArgs e)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                UpdateApplication();
+            });
+        }
+
+        private void NIcon_MouseDown(object sender, System.Windows.Forms.MouseEventArgs e)
+        {
+            if (e.Button == System.Windows.Forms.MouseButtons.Left)
+            {
+                ClockWindow.ShowTable = !ClockWindow.ShowTable;
+            }
         }
 
         private void MessageLogin(object sender, MouseButtonEventArgs e)
@@ -175,6 +237,47 @@ namespace MYTGS
             ClockWindow?.Close();
         }
 
+        private void HandleConnection(IAsyncResult iar)
+        {
+            try
+            {
+                // Get the pipe
+                NamedPipeServerStream pipeServer = (NamedPipeServerStream)iar.AsyncState;
+                // End waiting for the connection
+                pipeServer.EndWaitForConnection(iar);
+
+                byte[] buffer = new byte[255];
+
+                // Read the incoming message
+                pipeServer.Read(buffer, 0, 255);
+
+                // Convert byte buffer to string
+                string stringData = Encoding.UTF8.GetString(buffer, 0, 255);
+                if (stringData.StartsWith("SHOW"))
+                {
+                    Dispatcher.Invoke(() => {
+                        ShowInTaskbar = true;
+                        Show();
+                        Activate();
+                    });
+                }
+
+                // Kill original sever and create new wait server
+                pipeServer.Close();
+                pipeServer = null;
+                pipeServer = new NamedPipeServerStream("MYTGS", PipeDirection.InOut,
+                   1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
+
+                // Recursively wait for the connection again and again....
+                pipeServer.BeginWaitForConnection(
+                   new AsyncCallback(HandleConnection), pipeServer);
+            }
+            catch
+            {
+                return;
+            }
+        }
+
         private void LoadCachedTasks()
         {
             logger.Info("Loading Local tasks");
@@ -208,21 +311,99 @@ namespace MYTGS
         {
             //Check for changes
             //UpdateTasks(TasksPath);
-            
+            if (offlineMode == false)
+            {
+                if (LastEPR.Date.Day < DateTime.Now.Day && LastEPR.Date.Month < DateTime.Now.Month && LastEPR.Date.Year < DateTime.Now.Year)
+                {
+                    try
+                    {
+                        string EPRstr = FF.EPR();
+                        if (EPRstr != null)
+                        {
+                            EPRstring = EPRstr;
+                            LastEPR = EPRHandler.ProcessEPR(EPRstr);
+                            ClockWindow.SetSchedule(EPRCheck(LastEPR, ClockWindow.Schedule, false));
+                        }
+                    }
+                    catch
+                    {
+                        logger.Warn("EPR Processing failed");
+                    }
+
+                    Dispatcher.Invoke(() => {
+
+                        eprbrowser.NavigateToString("<html><head><meta http-equiv=\"X-UA-Compatible\" content=\"IE=10\"><style>table {width: 100%; border: 1px solid #333; border-collapse: collapse !important;}td {border-right: 1px solid #333; padding: 0.375rem;} tr:not(:last-child) {border-bottom: 1px solid #ccc;}</style></head><body>" + EPRstring + "</body></html>");
+                    });
+
+
+                }
+                else if (EPRWait > 3)
+                {
+                    EPRWait = 0;
+                    try
+                    {
+                        string EPRstr = FF.EPR();
+                        if (EPRstr != null)
+                        {
+                            EPRstring = EPRstr;
+                            LastEPR = EPRHandler.ProcessEPR(EPRstr);
+                            ClockWindow.SetSchedule(EPRCheck(LastEPR, ClockWindow.Schedule, false));
+                        }
+                    }
+                    catch
+                    {
+                        logger.Warn("EPR Processing failed");
+                    }
+
+                    Dispatcher.Invoke(() => {
+
+                        eprbrowser.NavigateToString("<html><head><meta http-equiv=\"X-UA-Compatible\" content=\"IE=10\"><style>table {width: 100%; border: 1px solid #333; border-collapse: collapse !important;}td {border-right: 1px solid #333; padding: 0.375rem;} tr:not(:last-child) {border-bottom: 1px solid #ccc;}</style></head><body>" + EPRstring + "</body></html>");
+                    });
+                }
+                else
+                {
+                    EPRWait += 1;
+                }
+
+                if (LastDayCheck.ToShortDateString() != DateTime.Now.ToShortDateString())
+                {
+                    LastDayCheck = DateTime.Now;
+                    Firefly.FFEvent[] Events = FF.GetEvents(DateTime.Now.AddDays(-15), DateTime.Now.AddDays(15));
+                    if (Events != null)
+                    {
+                        DBUpdateEvents("Trinity", Events, DateTime.UtcNow.AddDays(-15), DateTime.UtcNow.AddDays(15));
+                        FFEventsLastUpdated = DateTime.UtcNow;
+                    }
+                    
+                    if (PlannerCurrentDay)
+                    {
+                        PlannerDate = DateTime.Now;
+                    }
+                    GeneratePlanner(PlannerDate);
+
+                    List<TimetablePeriod> todayPeriods = Timetablehandler.ProcessForUse(DBGetDayEvents("Trinity", DateTime.Now), DateTime.UtcNow, false, true, false);
+                    todayPeriods = EPRCheck(LastEPR, todayPeriods, true);
+                    ClockWindow.SetSchedule(todayPeriods);
+
+                }
+            }
         }
 
-        private List<TimetablePeriod> EPRCheck(EPRcollection epr, List<TimetablePeriod> periods)
+        private List<TimetablePeriod> EPRCheck(EPRcollection epr, List<TimetablePeriod> periods, bool Notify = true)
         {
             DateTime EPRlocalDate = epr.Date.ToLocalTime();
 
-            if (epr.Errors)
+            if (Notify && epr.Errors)
             {
                 nIcon.ShowBalloonTip(10000, "EPR Error", "EPR Processing ran into some errors, please check EPR yourself", System.Windows.Forms.ToolTipIcon.Error);
             }
 
+            Dispatcher.Invoke(() =>
+            {
+                EPRChanges.Clear();
+            });
             for (int i = 0; i < periods.Count; i++)
             {
-                Console.WriteLine("Period " + periods[i].period + " Class " + periods[i].Classcode + " Room: " + periods[i].Roomcode + " start: " + periods[i].Start.ToLocalTime() + " End: " + periods[i].End.ToLocalTime());
                 if (EPRlocalDate.Day == DateTime.Now.Day && EPRlocalDate.Month == DateTime.Now.Month && EPRlocalDate.Year == DateTime.Now.Year)
                 {
                     //Room change
@@ -232,8 +413,14 @@ namespace MYTGS
                         item.Roomcode = LastEPR.Changes[item.Classcode + "-" + periods[i].period].Roomcode;
                         item.Teacher = LastEPR.Changes[item.Classcode + "-" + periods[i].period].Teacher;
                         periods[i] = item;
-                        nIcon.ShowBalloonTip(10000, "Class Change", item.Classcode + " Room: " + item.Roomcode + " Teacher: " + item.Teacher, System.Windows.Forms.ToolTipIcon.Info);
-                        Console.WriteLine("Class was changed! Room: " + item.Roomcode + " Teacher: " + item.Teacher);
+                        Dispatcher.Invoke(() =>
+                        {
+                            EPRChanges.Add(item);
+                        });
+                        if (Notify)
+                        {
+                            nIcon.ShowBalloonTip(10000, "Class Change", item.Classcode + " Room: " + item.Roomcode + " Teacher: " + item.Teacher, System.Windows.Forms.ToolTipIcon.Info);
+                        }
                     }
                 }
             }
@@ -265,9 +452,14 @@ namespace MYTGS
             //Tasks = FF.GetAllTasksByIds(FF.GetAllIds()).Reverse().ToDictionary(pv => pv.id, pv => pv);
 
             string EPRstr = FF.EPR();
+            if (EPRstr != null)
+            {
+                EPRstring = EPRstr;
+            }
+
             Dispatcher.Invoke(() => {
 
-                eprbrowser.NavigateToString("<html><head><meta http-equiv=\"X-UA-Compatible\" content=\"IE=10\"><style>table {width: 100%; border: 1px solid #333; border-collapse: collapse !important;}td {border-right: 1px solid #333; padding: 0.375rem;} tr:not(:last-child) {border-bottom: 1px solid #ccc;}</style></head><body scroll=\"no\">" + EPRstr + "</body></html>");
+                eprbrowser.NavigateToString("<html><head><meta http-equiv=\"X-UA-Compatible\" content=\"IE=10\"><style>table {width: 100%; border: 1px solid #333; border-collapse: collapse !important;}td {border-right: 1px solid #333; padding: 0.375rem;} tr:not(:last-child) {border-bottom: 1px solid #ccc;}</style></head><body>" + EPRstring + "</body></html>");
                 EmailLabel.Content = FF.Email;
                 IDLabel.Content = FF.Username;
                 UserImage.Source = FF.GetUserImage();
@@ -280,27 +472,9 @@ namespace MYTGS
             if (Events != null)
             {
                 DBUpdateEvents("Trinity", Events, DateTime.UtcNow.AddDays(-15), DateTime.UtcNow.AddDays(15));
+                FFEventsLastUpdated = DateTime.UtcNow;
             }
-            FFEventsLastUpdated = DateTime.UtcNow;
-
-
-            foreach (Firefly.FFEvent item in DBGetAllEvents("Trinity"))
-            {
-                DateTime startlocal = item.start.ToLocalTime();
-                DateTime endlocal = item.end.ToLocalTime();
-                //Item is in this month 
-                
-                PlannerStack.Dispatcher.Invoke(new Action(() =>
-                {
-                    Label lbl = new Label()
-                    {
-                        Content = "Start " + item.start.ToLocalTime() + " End " + item.end.ToLocalTime() + " Guid: " + item.guid + " Subject: " + item.subject + " Desc: " + item.description + " Loc: " + item.location
-                    };
-                    if (item.Teacher.Length > 0)
-                        lbl.Content += " Teacher: " + item.Teacher;
-                    PlannerStack.Items.Add(lbl);
-                }));
-            }
+            
 
             List<TimetablePeriod> todayPeriods = Timetablehandler.ProcessForUse(DBGetDayEvents("Trinity", DateTime.Now), DateTime.UtcNow, false, true, false);
             
@@ -367,15 +541,21 @@ namespace MYTGS
         }
         
         //Registry edits that don't require admin
-        public static void AddApplicationToStartup()
+        public void AddApplicationToStartup()
         {
             using (RegistryKey key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true))
             {
-                key.SetValue("MYTGS App", "\"" + System.Reflection.Assembly.GetExecutingAssembly().Location + "\" /SystemStartup");
+                string location = "\"" + System.Reflection.Assembly.GetExecutingAssembly().Location + "\" /SystemStartup";
+                if (System.Deployment.Application.ApplicationDeployment.IsNetworkDeployed)
+                {
+                    location = Environment.GetFolderPath(Environment.SpecialFolder.Programs)
+                   + @"\Torca\MYTGS\MYTGS.appref-ms /SystemStartup";
+                }
+                key.SetValue("MYTGS App", location);
             }
         }
 
-        public static void RemoveApplicationFromStartup()
+        public void RemoveApplicationFromStartup()
         {
             using (RegistryKey key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true))
             {
@@ -387,8 +567,14 @@ namespace MYTGS
         {
             using (RegistryKey key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true))
             {
+                string location = "\"" + System.Reflection.Assembly.GetExecutingAssembly().Location + "\"";
+                if (System.Deployment.Application.ApplicationDeployment.IsNetworkDeployed)
+                {
+                    location = Environment.GetFolderPath(Environment.SpecialFolder.Programs)
+                   + @"\Torca\MYTGS\MYTGS.appref-ms";
+                }
                 object k = key.GetValue("MYTGS App");
-                if (k != null && (string)k == "\"" + System.Reflection.Assembly.GetExecutingAssembly().Location + "\" /SystemStartup")
+                if (k != null && ((string)k).StartsWith(location))
                 {
                     return true;
                 }
@@ -577,11 +763,6 @@ namespace MYTGS
             UpdateApplication();
         }
 
-        private void Eprbrowser_LoadCompleted(object sender, System.Windows.Navigation.NavigationEventArgs e)
-        {
-            eprbrowser.Height = ((dynamic)eprbrowser.Document).Body.parentElement.scrollHeight;
-        }
-
         private void Button_Click(object sender, RoutedEventArgs e)
         {
             safeclose = true;
@@ -611,6 +792,60 @@ namespace MYTGS
                     Close();
                     break;
             }
+        }
+
+        private void PlannerGrid_KeyUp(object sender, KeyEventArgs e)
+        {
+            switch (e.Key)
+            {
+                case Key.Left:
+                    PlannerDate = PlannerDate.AddDays(e.KeyboardDevice.Modifiers == ModifierKeys.Shift ? -7 : -1);
+                    PlannerCurrentDay = PlannerDate.ToShortDateString() == DateTime.Now.ToShortDateString();
+                    GeneratePlanner(PlannerDate);
+                    break;
+                case Key.Right:
+                    PlannerDate = PlannerDate.AddDays(e.KeyboardDevice.Modifiers == ModifierKeys.Shift ? 7 : 1);
+                    PlannerCurrentDay = PlannerDate.ToShortDateString() == DateTime.Now.ToShortDateString();
+                    GeneratePlanner(PlannerDate);
+                    break;
+            }
+
+
+        }
+
+        private void Button_Click_2(object sender, RoutedEventArgs e)
+        {
+            PlannerDate = PlannerDate.AddDays(Keyboard.Modifiers == ModifierKeys.Shift ? -7 : -1);
+            PlannerCurrentDay = PlannerDate.ToShortDateString() == DateTime.Now.ToShortDateString();
+            GeneratePlanner(PlannerDate);
+        }
+
+        private void Button_Click_3(object sender, RoutedEventArgs e)
+        {
+            PlannerDate = PlannerDate.AddDays(Keyboard.Modifiers == ModifierKeys.Shift ? 7 : 1);
+            PlannerCurrentDay = PlannerDate.ToShortDateString() == DateTime.Now.ToShortDateString();
+            GeneratePlanner(PlannerDate);
+        }
+
+        private void Button_Click_4(object sender, RoutedEventArgs e)
+        {
+            MainTabControl.SelectedIndex = 6;
+            eprbrowser.Focus();
+            Task.Run(() =>
+            {
+                string EPRstr = FF.EPR();
+                if (EPRstr == null)
+                {
+                    return;
+                }
+
+                EPRstring = EPRstr;
+
+                Dispatcher.Invoke(() => {
+
+                    eprbrowser.NavigateToString("<html><head><meta http-equiv=\"X-UA-Compatible\" content=\"IE=10\"><style>table {width: 100%; border: 1px solid #333; border-collapse: collapse !important;}td {border-right: 1px solid #333; padding: 0.375rem;} tr:not(:last-child) {border-bottom: 1px solid #ccc;}</style></head><body>" + EPRstring + "</body></html>");
+                });
+            });
         }
     }
 }

@@ -152,6 +152,11 @@ namespace MYTGS
             periods = periods.OrderBy(o => o.Start).ToArray();
             for (int i = 0; i < periods.Length-1; i++)
             {
+                if (periods[i].Start == new DateTime())
+                {
+                    continue;
+                }
+
                 if (periods[i + 1].GotoPeriod)
                 {
                     DateTime tmp = periods[i + 1].Start.AddMinutes(-5);

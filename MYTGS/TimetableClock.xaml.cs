@@ -133,6 +133,7 @@ namespace MYTGS
 
         private void SecTimer_Tick(object sender, EventArgs e)
         {
+            
             int i = 0;
             for (i = 0;  i <= Schedule.Count; i++)
             {
@@ -154,7 +155,7 @@ namespace MYTGS
                 if (Schedule[i].GotoPeriod)
                 {
                     DateTime GotoTime = Schedule[i].Start.AddMinutes(-5);
-                    if (Timetablehandler.CompareInBetween(GotoTime, Schedule[i].Start, RN))
+                    if (Timetablehandler.CompareInBetween(GotoTime, Schedule[i].Start, RN) && !(i!=0 && Schedule[i-1].Classcode == Schedule[i].Classcode))
                     {
                         Countdown = Schedule[i].Start - RN;
                         LabelDesc = "Go to " + AutoDesc(Schedule[i]);
@@ -175,6 +176,20 @@ namespace MYTGS
                         LabelRoom = Schedule[i].Roomcode;
                         break;
                     }
+                    else if ( Schedule[i].Start > RN)
+                    {
+                        if (i!= 0 && Schedule[i - 1].Classcode == Schedule[i].Classcode)
+                        {
+                            Countdown = schedule[i].End - RN;
+                            LabelDesc = AutoDesc(Schedule[i]);
+                            LabelRoom = Schedule[i].Roomcode;
+                            break;
+                        }
+                        Countdown = GotoTime - RN;
+                        LabelDesc = "Next " + AutoDesc(Schedule[i]);
+                        LabelRoom = Schedule[i].Roomcode;
+                        break;
+                    }
                 }
                 else if (Timetablehandler.CompareInBetween(Schedule[i].Start, Schedule[i].End, RN))
                 {
@@ -187,6 +202,13 @@ namespace MYTGS
                         Countdown = Schedule[i].End - RN;
                     }
                     LabelDesc = AutoDesc(Schedule[i]);
+                    LabelRoom = Schedule[i].Roomcode;
+                    break;
+                }
+                else if (Schedule[i].Start > RN)
+                {
+                    Countdown = Schedule[i].Start - RN;
+                    LabelDesc = "Next " + AutoDesc(Schedule[i]);
                     LabelRoom = Schedule[i].Roomcode;
                     break;
                 }
@@ -212,6 +234,7 @@ namespace MYTGS
                 if (AutoHide)
                 {
                     FadeInWindow();
+                    Hiding = false;
                     AutoHide = false;
                 }
             }
@@ -226,7 +249,7 @@ namespace MYTGS
         //This is required as stuttering will occur if you make the object disappear as it will forget its previous size
         private void Grid_MouseEnter(object sender, MouseEventArgs e)
         {
-            if ( FadeOnHover && !MoveRequest)
+            if (!ShowTable && FadeOnHover && !MoveRequest)
             {
                 double Current_Width = ContentGrid.ActualWidth;
                 double Current_Height = ContentGrid.ActualHeight;
@@ -240,7 +263,7 @@ namespace MYTGS
                     //Cast it to an easier to reference object
                     System.Drawing.Point mousepoint = System.Windows.Forms.Control.MousePosition;
                     //Check if it is out of the bounds of the previous rectangle
-                    if (mousepoint.X < Pos.X ||
+                    if ( ShowTable || mousepoint.X < Pos.X ||
                         mousepoint.Y < Pos.Y ||
                         mousepoint.X > Pos.X + Current_Width ||
                         mousepoint.Y > Pos.Y + Current_Height
@@ -379,12 +402,16 @@ namespace MYTGS
 
             GetWindowRect(new HandleRef(null, hWnd), ref rect);
 
-            /* in case you want the process name:
+            //in case you want the process name:
             uint procId = 0;
             GetWindowThreadProcessId(hWnd, out procId);
             var proc = System.Diagnostics.Process.GetProcessById((int)procId);
-            Console.WriteLine(proc.ProcessName);
-            */
+            //Console.WriteLine(proc.ProcessName);
+            if (proc.ProcessName == "explorer" || proc.ProcessName == "")
+            {
+                return false;
+            }
+
             bool Fullsize = screen.Bounds.Width == (rect.right - rect.left) && screen.Bounds.Height == (rect.bottom - rect.top);
 
             if (SameScreen)

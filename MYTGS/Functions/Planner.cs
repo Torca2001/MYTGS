@@ -281,6 +281,7 @@ namespace MYTGS
                         continue;
                     }
                     Period pp = new Period();
+                    pp.FontSize = 14;
                     pp.MouseDown += Pp_MouseDown;
                     pp.SetValue(Grid.ColumnProperty, i);
                     pp.SetValue(Grid.RowProperty, k+1);
@@ -305,7 +306,6 @@ namespace MYTGS
             if (picker.ShowDialog() == System.Windows.Forms.DialogResult.OK)
             {
                 SolidColorBrush brush = new SolidColorBrush(Color.FromArgb(picker.Color.A, picker.Color.R, picker.Color.G, picker.Color.B));
-                Console.WriteLine("item " + ((TimetablePeriod)((Period)sender).DataContext).Classcode);
                 DBUpdateItem("Trinity" ,new ColourItem(((TimetablePeriod)((Period)sender).DataContext).Classcode, brush));
                 GeneratePlanner(PlannerDate);
             }

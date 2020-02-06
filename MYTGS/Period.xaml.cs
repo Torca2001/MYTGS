@@ -28,6 +28,7 @@ namespace MYTGS
             if (ActualHeight > ExpandedHeight)
             {
                 TeacherLabel.Visibility = Visibility.Visible;
+                PeriodLabel.Visibility = Visibility.Visible;
             }
         }
 
@@ -36,16 +37,13 @@ namespace MYTGS
             if (ActualHeight > ExpandedHeight)
             {
                 TeacherLabel.Visibility = Visibility.Visible;
+                PeriodLabel.Visibility = Visibility.Visible;
             }
             else
             {
                 TeacherLabel.Visibility = Visibility.Collapsed;
+                PeriodLabel.Visibility = Visibility.Collapsed;
             }
-        }
-
-        internal void SetValue(Action<MouseButtonEventArgs> onMouseDown, object openColourPicker)
-        {
-            throw new NotImplementedException();
         }
     }
 }

@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:MYTGS"
         mc:Ignorable="d"
         Title="TimetableClock" ShowInTaskbar="False" Topmost="True" WindowStartupLocation="CenterScreen" ResizeMode="NoResize" WindowStyle="None" AllowsTransparency="True" Width="400" Height="400" Loaded="Window_Loaded" 
-        Icon="Resources/logo.ico">
+        Icon="Resources/MYTGSIcon.ico">
 
     <Grid x:Name="ContentGrid" MouseEnter="Grid_MouseEnter" VerticalAlignment="Bottom" HorizontalAlignment="Right" MouseDown="ContentGrid_MouseDown">
         <ContentControl x:Name="ContentCtrl">
@@ -36,6 +36,9 @@
                 </Style>
             </Grid.Style>
             <Grid Height="250" Margin="0,0,0,60">
+                <Grid.Background>
+                    <ImageBrush ImageSource="Resources/Backgroundx250.png"/>
+                </Grid.Background>
                 <Grid.Style>
                     <Style TargetType="{x:Type Grid}">
                         <Setter Property="Visibility" Value="Collapsed"/>
@@ -46,24 +49,22 @@
                         </Style.Triggers>
                     </Style>
                 </Grid.Style>
-                <ListView ItemsSource="{Binding Schedule}">
-                    <ListView.ItemTemplate>
+                <ItemsControl ItemsSource="{Binding Schedule}" Focusable="False" Margin="4,2,10,4">
+                    <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Grid Height="50" HorizontalAlignment="Stretch" ToolTip="{Binding Path=Tooltip}" Background="#00555555">
-                                <Label Content="{Binding Path=Classcode}" HorizontalAlignment="Left"/>
-                                <Label Content="{Binding Path=Roomcode}" HorizontalAlignment="Right"/>
+                            <Grid Height="50" HorizontalAlignment="Stretch" ToolTip="{Binding Path=Tooltip}" Background="#00000000">
+                                <Label Content="{Binding Path=Classcode}" HorizontalAlignment="Left" Foreground="White" FontSize="14"/>
+                                <Label Content="{Binding Path=Roomcode}" HorizontalAlignment="Right" Foreground="White" FontSize="14"/>
                             </Grid>
                         </DataTemplate>
-                    </ListView.ItemTemplate>
-                    <ListView.ItemContainerStyle>
-                        <Style TargetType="ListViewItem">
-                            <Setter Property="Padding" Value="0"/>
+                    </ItemsControl.ItemTemplate>
+                    <ItemsControl.ItemContainerStyle>
+                        <Style TargetType="{x:Type ContentPresenter}">
                             <Setter Property="Margin" Value="0"/>
-                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
                             <Setter Property="Height" Value="27"/>
                         </Style>
-                    </ListView.ItemContainerStyle>
-                </ListView>
+                    </ItemsControl.ItemContainerStyle>
+                </ItemsControl>
             </Grid>
         </Grid>
     </Grid>

@@ -127,6 +127,18 @@ namespace MYTGS
             }
         }
 
+        public string EPRstring
+        {
+            get => eprstring;
+            set
+            {
+                eprstring = value;
+                settings.SaveSettings("EPRstring", value);
+            }
+        }
+
+        private string eprstring { get; set; }
+
         public EPRcollection LastEPR
         {
             get => lastEPR;
@@ -257,6 +269,16 @@ namespace MYTGS
             else
             {
                 Offset = 0;
+            }
+
+            if (settings.GetSettings("EPRstring") != null)
+            {
+
+                EPRstring = settings.GetSettings("EPRstring");
+            }
+            else
+            {
+                EPRstring = "";
             }
 
             try

@@ -1,4 +1,4 @@
-# MYTGS
+# MYTGS - Download Here
 This is a simple desktop application designed for TGS student.
 It is made to be a step up from my [original project](https://github.com/Torca2001/timetable-clock). 
 It integrates with Firefly Education's Api to display user's tasks 

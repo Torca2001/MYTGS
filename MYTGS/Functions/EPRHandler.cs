@@ -37,7 +37,6 @@ namespace MYTGS
                 }
 
                 EPR.Date = new DateTime(Convert.ToInt16(header.Groups[4].Value), Convert.ToInt16(header.Groups[3].Value), Convert.ToInt16(header.Groups[2].Value)); //Date of EPR
-                EPR.Date = EPR.Date.ToUniversalTime(); //Convert to UTC 
 
                 Match RoomChangeTable = Regex.Match(EPRstr, @"room\s{0,4}changes(?:.|\n)*?<tbody>((?:.|\n)*?)<\/tbody>", RegexOptions.IgnoreCase);
                 if (RoomChangeTable.Success)

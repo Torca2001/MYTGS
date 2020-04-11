@@ -25,7 +25,7 @@ namespace MYTGS
         MainWindow mainWindow;
 
         void App_Startup(object sender, StartupEventArgs e)
-        {
+       {
             bool createdNew;
 
             _mutex = new Mutex(true, Appname, out createdNew);

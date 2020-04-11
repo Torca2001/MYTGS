@@ -10,9 +10,11 @@ namespace Firefly
 {
     //There is so much inefficiency in these structures, any improvements to the handling of the json responses would be greatly appreciated
     //Task objects
-    struct FullTask
+    public struct FullTask
     {
+        [TextBlob("BlobDescription")]
         public DescriptionDetails descriptionDetails{ get; set; }
+
         public bool hideFromRecipients{ get; set; }
         public string responseReleaseMode{ get; set; }
         public string pseudoFromGuid{ get; set; }
@@ -21,7 +23,14 @@ namespace Firefly
         public DateTime setDate{ get; set; }
         public DateTime dueDate{ get; set; }
 
+        //Derived Variables from data
+        public DateTime LatestestActivity { get; set; }
+        [Ignore]
+        public List<string> ClassKeys { get; set; }
+
+        [TextBlob("BlobPrincipal")]
         public Principal setter{ get; set; }
+
         public bool archived{ get; set; }
         public bool draft{ get; set; }
         public bool hiddenFromParentPortal{ get; set; }
@@ -39,32 +48,49 @@ namespace Firefly
         public float mark{ get; set; }
         public string descriptionPageUrl{ get; set; }
 
-        public Principal[] coowners{ get; set; }
 
+        [TextBlob("BlobCoowner")]
+        public Principal[] coowners{ get; set; }
+        
+        [TextBlob("BlobFileAttachment")]
         public FileAttachments[] fileAttachments{ get; set; }
 
+        [TextBlob("BlobPageAttachment")]
         public PageAttachments[] pageAttachments{ get; set; }
 
+        [TextBlob("BlobAddressees")]
         public Address[] addressees{ get; set; }
 
-        [OneToMany]
+        [TextBlob("BlobRecipients")]
         public RecipientResponse[] recipientsResponses{ get; set; }
 
+        [TextBlob("BloballRecipients")]
         public RecipientResponse[] allRecipientsResponses{ get; set; }
 
+        [TextBlob("BlobRecipientStatuses")]
         public RecipientResponse[] recipientStatuses{ get; set; }
         public bool deleted{ get; set; }
         public bool ownershipRevoked{ get; set; }
         public bool setInTheFuture{ get; set; }
-
-        [JsonProperty(Required = Required.Always)]
+        
         [PrimaryKey]
         public int id{ get; set; }
 
 
+        //Text Serialization
+        public string BlobDescription { get; set; }
+        public string BlobPrincipal { get; set; }
+        public string BlobCoowner { get; set; }
+        public string BlobFileAttachment { get; set; }
+        public string BlobPageAttachment { get; set; }
+        public string BlobAddressees { get; set; }
+        public string BlobRecipients { get; set; }
+        public string BloballRecipients { get; set; }
+        public string BlobRecipientStatuses { get; set; }
+
     }
 
-    struct DescriptionDetails
+    public struct DescriptionDetails
     {
         public int descriptionPageId { get; set; }
         public string htmlContent { get; set; }
@@ -72,7 +98,7 @@ namespace Firefly
         public bool isSimpleDescription { get; set; }
     }
 
-    struct FileAttachments
+    public struct FileAttachments
     {
         public int resourceId { get; set; }
         public string fileName { get; set; }
@@ -81,14 +107,14 @@ namespace Firefly
         public DateTime dateCreated { get; set; }
     }
 
-    struct PageAttachments
+    public struct PageAttachments
     {
         public int pageId;
         public string titleLong;
         public string titleShort;
     }
 
-    struct Address
+    public struct Address
     {
         public bool isGroup;
         public Principal principal;
@@ -102,7 +128,7 @@ namespace Firefly
         public bool deleted { set; get; }
     }
     
-    struct RecipientResponse
+    public struct RecipientResponse
     {
         public Principal principal { get; set; }
 
@@ -110,12 +136,13 @@ namespace Firefly
         public Response[] responses { get; set; }
     }
 
-    struct Response
+    public struct Response
     {
         public bool latestRead{ get; set; }
         public string authorName{ get; set; }
         public float mark{ get; set; }
         public bool isMarkAutomated{ get; set; }
+        public float outOf { get; set; }
         public string message{ get; set; }
         public int versionId{ get; set; }
         public bool released{ get; set; }
@@ -131,7 +158,7 @@ namespace Firefly
 
     }
 
-    struct AssessmentDetails
+    public struct AssessmentDetails
     {
         public float assessmentMarkMax { get; set; }
         public int assessmentDetailsId { get; set; }
@@ -144,7 +171,7 @@ namespace Firefly
         public string role { get; set; }
     }
 
-    struct AttendeePrincipal
+    public struct AttendeePrincipal
     {
         public string guid;
         public string name;
@@ -153,7 +180,7 @@ namespace Firefly
     }
 
     //Event objects
-    struct Group
+    public struct Group
     {
         public string guid;
         public string name;
@@ -161,12 +188,12 @@ namespace Firefly
         public Color personal_colour;
     }
 
-    struct Data
+    public struct Data
     {
         public EventHolder data;
     }
 
-    struct EventHolder
+    public struct EventHolder
     {
         public FFEvent[] events;
     }
@@ -195,19 +222,19 @@ namespace Firefly
 
     //Response object
 
-    struct TmpResp
+    public struct TmpResp
     {
         public Responses responses; //why.....
     }
 
-    struct Responses
+    public struct Responses
     {
         public ResponseEvent[] responses;
         public Dictionary<string, Principal> users;
         //Don't need the included users for this its redundant
     }
 
-    class ResponseEvent
+    public class ResponseEvent
     {
         public Recipient recipient;   
         public int latestVersionId;
@@ -249,19 +276,19 @@ namespace Firefly
         }
     }
 
-    struct Recipient
+    public struct Recipient
     {
         public string type;
         public string guid;
     }
 
-    struct RespEvent
+    public struct RespEvent
     {
         public Description description;
         public RespState state;
     }
 
-    struct Description
+    public struct Description
     {
         public string type;
         public RespFile[] files;
@@ -278,7 +305,7 @@ namespace Firefly
         public DateTime sent;
     }
 
-    class RespAssessmentDetails
+    public class RespAssessmentDetails
     {
         public int id;
         public RespAssessmentType assessmentType;
@@ -296,7 +323,7 @@ namespace Firefly
         }
     }
 
-    struct RespAssessmentType
+    public struct RespAssessmentType
     {
         //ID which I don't know what to do with
         public int id;
@@ -310,19 +337,19 @@ namespace Firefly
         public bool isMarkAndGrade; //Isn't this redudant as checking both isMark and isGrade?
     }
 
-    struct RespFile
+    public struct RespFile
     {
         public RespId id;
         public string title;
         public string type;
     }
 
-    struct RespId
+    public struct RespId
     {
         public int value;
     }
 
-    struct RespState
+    public struct RespState
     {
         public bool released;
         public DateTime releasedAt;
@@ -343,7 +370,7 @@ namespace Firefly
 
 
     //Helper structures
-    struct SSOResponse
+    public struct SSOResponse
     {
         public bool valid;
         public string guid;

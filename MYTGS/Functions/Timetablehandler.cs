@@ -83,6 +83,11 @@ namespace MYTGS
                     };
                     periods[i] = tmp;
                 }
+                else if (Earlyfinish)
+                {
+                    periods[i].Start = DateTimespan(day, DefaultPeriods[i, position].Start);
+                    periods[i].End = DateTimespan(day, DefaultPeriods[i, position].End);
+                }
             }
 
             return periods;

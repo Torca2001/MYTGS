@@ -18,54 +18,48 @@ namespace MYTGS
         public CalendarEvent[] CurrentEarlyFinishes {
             get
             {
-                return EarlyFinishes.Where(p => p.DtStart <= DateTime.UtcNow.AddDays(1)).OrderBy(p => p.DtStart).ToArray();
+                return EarlyFinishes.Where(p => p.DtStart.DateTime >= DateTime.UtcNow.AddDays(-1)).OrderBy(p => p.DtStart).ToArray();
             }
                 
         }
 
-        private void InitializeCalendarDB(string school)
+        private void InitializeCalendarDB(SQLiteConnection sqldb)
         {
-            string databasePath = Path.Combine(Environment.ExpandEnvironmentVariables((string)Properties.Settings.Default["AppPath"]), school + ".db");
-            using (SQLiteConnection db = new SQLiteConnection(databasePath))
-            {
-                db.CreateTable<CalendarEvent>();
-            }
+
+            sqldb.CreateTable<CalendarEvent>();
+            sqldb.CreateTable<EarlyFinishEvent>();
         }
 
-        private void UpdateCalendar(string school)
+        private void UpdateCalendar(SQLiteConnection sqldb)
         {
             WebClient web = new WebClient();
             try
             {
                 string ics = web.DownloadString(CalendarUrl);
                 Calendar schoolCalendar = Calendar.Load(ics);
-                string databasePath = Path.Combine(Environment.ExpandEnvironmentVariables((string)Properties.Settings.Default["AppPath"]), school + ".db");
-                using (SQLiteConnection db = new SQLiteConnection(databasePath))
+                foreach (Ical.Net.CalendarComponents.CalendarEvent item in schoolCalendar.Events)
                 {
-                    foreach (Ical.Net.CalendarComponents.CalendarEvent item in schoolCalendar.Events)
+                    try
                     {
-                        try
+                        sqldb.InsertOrReplace(new CalendarEvent()
                         {
-                            db.InsertOrReplace(new CalendarEvent()
-                            {
-                                DtEnd = item.DtEnd.AsDateTimeOffset,
-                                DtStart = item.DtStart.AsDateTimeOffset,
-                                DtStamp = item.DtStamp.AsDateTimeOffset,
-                                Uid = item.Uid,
-                                //Url = item.Url,
-                                Name = item.Name,
-                                Location = item.Location,
-                                Summary = item.Summary,
-                                Status = item.Status,
-                                UserCreated = false,
-                                Description = item.Description
+                            DtEnd = item.DtEnd.AsDateTimeOffset,
+                            DtStart = item.DtStart.AsDateTimeOffset,
+                            DtStamp = item.DtStamp.AsDateTimeOffset,
+                            Uid = item.Uid,
+                            //Url = item.Url,
+                            Name = item.Name,
+                            Location = item.Location,
+                            Summary = item.Summary,
+                            Status = item.Status,
+                            UserCreated = false,
+                            Description = item.Description
 
-                            });
-                        }
-                        catch
-                        {
-                            logger.Warn("Calendar Event failed to parse UID: " + item.Uid);
-                        }
+                        });
+                    }
+                    catch
+                    {
+                        logger.Warn("Calendar Event failed to parse UID: " + item.Uid);
                     }
                 }
             }
@@ -75,25 +69,76 @@ namespace MYTGS
             }
         }
 
-        private void CheckForEarlyFinishes(string school)
+
+        private void UserEarlyFinishEvent(SQLiteConnection sqldb, bool flag)
         {
-            string databasePath = Path.Combine(Environment.ExpandEnvironmentVariables((string)Properties.Settings.Default["AppPath"]), school + ".db");
-            using (SQLiteConnection db = new SQLiteConnection(databasePath))
+            UserEarlyFinishEvent(sqldb, flag, DateTime.Now);
+        }
+
+        private void UserEarlyFinishEvent(SQLiteConnection sqldb, bool flag, DateTime date)
+        {
+            var result = sqldb.Table<EarlyFinishEvent>().Where(p => p.Date == DateTime.Now.Date.Year + " " + DateTime.Now.Date.Month + " " + DateTime.Now.Date.Day);
+            try
             {
-                EarlyFinishes.Clear();
-                foreach (CalendarEvent item in db.Table<CalendarEvent>())
+                sqldb.InsertOrReplace(new EarlyFinishEvent
                 {
-                    if (item.Summary.ToLower().Trim().StartsWith("early finish"))
-                    {
-                        EarlyFinishes.Add(item);
-                    }
-                }
-                if (PropertyChanged != null)
-                    PropertyChanged(this, new PropertyChangedEventArgs("CurrentEarlyFinishes"));
+                    Date = date.ToShortDateString(),
+                    OverrideEarlyFinishto = flag
+                });
+            }
+            catch
+            {
+                logger.Warn("Failed to modify User Early Finish Event " + date.Year + " " + date.Month + " " + date.Day);
             }
         }
 
+        private bool IsTodayEarlyFinish(SQLiteConnection sqldb)
+        {
+            //User calendar takes priority
+            string comp = DateTime.Now.ToShortDateString();
+            var result = sqldb.Table<EarlyFinishEvent>().Where(p => p.Date == comp).ToArray();
+            if (result.Count() > 0)
+            {
+                return result.First().OverrideEarlyFinishto;
+            }
 
+            //Check outlook calendar last as user takes priority
+            foreach (CalendarEvent item in CurrentEarlyFinishes)
+            {
+                if (item.DtStart.DateTime.ToLocalTime().ToShortDateString() == DateTime.Now.ToShortDateString())
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private void CheckForEarlyFinishes(SQLiteConnection sqldb)
+        {
+
+            EarlyFinishes.Clear();
+            foreach (CalendarEvent item in sqldb.Table<CalendarEvent>())
+            {
+                if (item.Summary.ToLower().Trim().Contains("early finish"))
+                {
+                    EarlyFinishes.Add(item);
+                }
+            }
+            if (ClockWindow != null)
+                ClockWindow.CurrentEarlyFinishes = CurrentEarlyFinishes;
+            if (PropertyChanged != null)
+                PropertyChanged(this, new PropertyChangedEventArgs("CurrentEarlyFinishes"));
+        }
+
+
+    }
+
+    public class EarlyFinishEvent
+    {
+        [PrimaryKey]
+        public string Date { get; set; }
+        [NotNull]
+        public bool OverrideEarlyFinishto { get; set; }
     }
 
     public class CalendarEvent

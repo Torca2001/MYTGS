@@ -13,6 +13,7 @@ namespace MYTGS
     class Settings
     {
         string databasePath = Path.Combine(Environment.ExpandEnvironmentVariables((string)Properties.Settings.Default["AppPath"]), "settings.db");
+        SQLiteConnection db = null;
 
         public void SaveSettings(string Name, string Value)
         {
@@ -21,33 +22,30 @@ namespace MYTGS
 
         public void SaveSettings(SettingsItem item)
         {
-            using (SQLiteConnection db = new SQLiteConnection(databasePath))
-            {
-                db.InsertOrReplace(item);
-            }
+            db.InsertOrReplace(item);
+        }
+
+        public void Close()
+        {
+            db?.Close();
         }
 
         public void Initalize()
         {
-            using (SQLiteConnection db = new SQLiteConnection(databasePath))
-            {
-                db.CreateTable<SettingsItem>();
-            }
+            db = new SQLiteConnection(databasePath);
+            db.CreateTable<SettingsItem>();
         }
 
         public string GetSettings(string Name)
         {
-            using (SQLiteConnection db = new SQLiteConnection(databasePath))
+            TableQuery<SettingsItem> results = db.Table<SettingsItem>().Where(s => s.name == Name);
+            if (results.Count() > 0)
             {
-                TableQuery<SettingsItem> results = db.Table<SettingsItem>().Where(s => s.name == Name);
-                if (results.Count() > 0)
-                {
-                    return results.First().value;
-                }
-                else
-                {
-                    return "";
-                }
+                return results.First().value;
+            }
+            else
+            {
+                return "";
             }
         }
 
@@ -126,18 +124,6 @@ namespace MYTGS
                 settings.SaveSettings("CombineDoubles", value == true ? "1" : "0");
             }
         }
-
-        public string EPRstring
-        {
-            get => eprstring;
-            set
-            {
-                eprstring = value;
-                settings.SaveSettings("EPRstring", value);
-            }
-        }
-
-        private string eprstring { get; set; }
 
         public EPRcollection LastEPR
         {
@@ -271,25 +257,40 @@ namespace MYTGS
                 Offset = 0;
             }
 
-            if (settings.GetSettings("EPRstring") != null)
+            try
             {
-
-                EPRstring = settings.GetSettings("EPRstring");
+                if (settings.GetSettings("FirstDayDate") == "")
+                {
+                    FirstDayDate = new DateTime(2020, 2, 10);
+                }
+                FirstDayDate = JsonConvert.DeserializeObject<DateTime>(settings.GetSettings("FirstDayDate"));
             }
-            else
+            catch
             {
-                EPRstring = "";
+                FirstDayDate = new DateTime(2020, 2, 10);
             }
 
             try
             {
-                lastEPR = JsonConvert.DeserializeObject<EPRcollection>(settings.GetSettings("LastEPR"));
+                if (settings.GetSettings("LastEPR") == "")
+                {
+                    lastEPR = new EPRcollection();
+                    lastEPR.Day = 1;
+                }
+                else{
+                    lastEPR = JsonConvert.DeserializeObject<EPRcollection>(settings.GetSettings("LastEPR"));
+                }
+            }
+            catch
+            {
+
             }
             finally
             {
                 if (lastEPR == null)
                 {
                     lastEPR = new EPRcollection();
+                    lastEPR.Day = 1;
                 }
             }
 

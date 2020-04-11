@@ -19,6 +19,11 @@ namespace Firefly
 {
     class Firefly
     {
+        //TO-DO
+        //Download function - i.e. https://mytgs.fireflycloud.net.au/resource.aspx?id=179395&officeint=on
+        //
+
+
         Logger logger = LogManager.GetCurrentClassLogger();
         //Login window
         Login LoginWindow;
@@ -32,11 +37,12 @@ namespace Firefly
         //Variables for firefly school
         private string schoolUrl = "";
         private string schoolName;
-        private readonly bool _offlineMode = false;
+        private bool _offlineMode = false;
         private bool unauthorised = false;
         public Dictionary<string, FullTask> AllTasks = new Dictionary<string, FullTask>();
         //Event when Logged in
         public event EventHandler OnLogin;
+        public event EventHandler OnSiteConnect;
         //Events for read and unread events
         public event EventHandler OnRead;
         public event EventHandler OnUnread;
@@ -63,7 +69,22 @@ namespace Firefly
         //Timer object for task checking
         DispatcherTimer TaskTimer = new DispatcherTimer();
 
-        public Firefly(string school)
+        public Firefly(string school, bool Synchronous = false)
+        {
+            if (Synchronous)
+            {
+                Task CheckSchool = new Task(() => SiteConnect(school));
+                CheckSchool.Start();
+            }
+        }
+
+        public void SchoolCheckAsync(string school)
+        {
+            Task CheckSchool = new Task(() => SiteConnect(school));
+            CheckSchool.Start();
+        }
+
+        private void SiteConnect(string school)
         {
             WebClient web = new WebClient();
             XmlDocument xml = new XmlDocument();
@@ -85,9 +106,10 @@ namespace Firefly
                     {
                         schoolUrl = "http://" + addressNode.InnerText;
                     }
+                    OnSiteConnected(new EventArgs());
                 }
             }
-            catch(Exception e)
+            catch (Exception e)
             {
                 logger.Warn(e, "Failed to retrieve Firefly Page. Running in Offline Mode");
                 _offlineMode = true;
@@ -141,6 +163,64 @@ namespace Firefly
             LoginWindow.Show();
         }
 
+        public HtmlNode DashboardLocateMessage(string html)
+        {
+            try
+            {
+                HtmlDocument doc = new HtmlDocument();
+                doc.LoadHtml(html);
+                HtmlNode container = doc.GetElementbyId("ffContainer");
+                foreach (HtmlNode item in container.ChildNodes)
+                {
+                    var attributesearch = item.Attributes.Where(p => p.OriginalName == "data-ff-component-type");
+                    if (attributesearch.Count() == 1)
+                    {
+                        switch (attributesearch.First().Value)
+                        {
+                            case "html":
+                                return item;
+                            case "calendar":
+                                return null;
+                            default:
+                                break;
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                //Do nothing
+            }
+
+            return null;
+        }
+
+        //Gets main page
+        public string DashboardString()
+        {
+            if (!loggedIn)
+            {
+                return null;
+            }
+            try
+            {
+                WebClient web = new WebClient();
+                //Extra theme query set to minimal - Removes all associated css formating and safes bandwidth
+                return web.DownloadString(SchoolUrl + @"/dashboard?theme=minimal&ffauth_device_id=" + DeviceID + "&ffauth_secret=" + Token);
+            }
+            catch (WebException e)
+            {
+                logger.Warn(e);
+                return null;
+            }
+            catch
+            {
+                return null;
+            }
+
+        }
+
+        //Gets EPR page
         public string EPR()
         {
             if (!loggedIn)
@@ -153,6 +233,8 @@ namespace Firefly
                 HtmlDocument doc = new HtmlDocument();
                 WebClient web = new WebClient();
                 doc.LoadHtml(web.DownloadString(SchoolUrl + @"/administration-1/extra-period-roster-epr?ffauth_device_id=" + DeviceID + "&ffauth_secret=" + Token));
+
+
                 HtmlNode container = doc.GetElementbyId("ffContainer");
 
                 return container.InnerHtml;
@@ -278,11 +360,18 @@ namespace Firefly
             {
                 List<FullTask> AllTasks = new List<FullTask>();
                 List<int> tmpList = Ids.ToList<int>();
+                bool Isnull = false;
                 foreach (List<int> list in splitList<int>(tmpList,50))
                 {
                     FullTask[] tmp = GetFiftyTasksByIds(list.ToArray());
                     if (tmp != null)
                         AllTasks.AddRange(tmp);
+                    else
+                        Isnull = true;
+                }
+                if (Isnull && AllTasks.Count == 0)
+                {
+                    return null;
                 }
                 return AllTasks.ToArray();
             }
@@ -514,6 +603,57 @@ namespace Firefly
                     NullValueHandling = NullValueHandling.Ignore,
                     MissingMemberHandling = MissingMemberHandling.Ignore
                 });
+                for (int i = 0; i < Tasks.Length; i++)
+                {
+                    if (Tasks[i].title == null)
+                        Tasks[i].title = "";
+                    DateTime latest = Tasks[i].setDate;
+                    try
+                    {
+                        Dictionary<string, Response> nodup = new Dictionary<string, Response>();
+                        int itt = 0;
+
+                        //Iterate and find the highest time
+                        foreach(var item in Tasks[i].recipientsResponses[0].responses.OrderBy(pv => pv.sentTimestamp))
+                        {
+                            if ( item.mark != 0 && (item.outOf != 0 || Tasks[i].totalMarkOutOf != 0 || item.taskAssessmentDetails.assessmentMarkMax != 0))
+                            {
+                                Tasks[i].mark = item.mark;
+                                //Override outofmark to that of the item -- Sometimes they differ
+                                if (item.taskAssessmentDetails.assessmentMarkMax != 0)
+                                    Tasks[i].totalMarkOutOf = item.taskAssessmentDetails.assessmentMarkMax;
+                                else if (item.outOf != 0)
+                                    Tasks[i].totalMarkOutOf = item.outOf;
+                            }
+
+                            if (latest< item.createdTimestamp)
+                            {
+                                latest = item.createdTimestamp;
+                            }
+
+                            //Sometimes their just null, especially for set task so just ignore it
+                            if (item.eventGuid == null)
+                            {
+                                nodup.Add(itt.ToString(), item);
+                                itt++;
+                            }
+                            else if (!nodup.ContainsKey(item.eventGuid))
+                            {
+                                nodup.Add(item.eventGuid, item);
+                            }
+                        }
+                        Tasks[i].recipientsResponses[0].responses = nodup.Values.ToArray();
+
+                    }
+                    catch
+                    {
+                        //do nothing
+                    }
+                    finally
+                    {
+                        Tasks[i].LatestestActivity = latest;
+                    }
+                }
                 return Tasks;
             }
             catch(Exception e)
@@ -632,6 +772,12 @@ namespace Firefly
         {
             EventHandler handler = OnLogin;
             handler?.BeginInvoke(this,e,EndAsyncEvent,null);
+        }
+
+        protected virtual void OnSiteConnected(EventArgs e)
+        {
+            EventHandler handler = OnSiteConnect;
+            handler?.BeginInvoke(this, e, EndAsyncEvent, null);
         }
 
         protected virtual void OnReadEvent(ReadArgs e)

@@ -6,18 +6,46 @@
              xmlns:local="clr-namespace:MYTGS"
              mc:Ignorable="d" 
              d:DesignHeight="200" d:DesignWidth="200">
-    <Grid ToolTip="{Binding Tooltip}" SizeChanged="Grid_SizeChanged">
+    <Grid ToolTip="{Binding Tooltip, TargetNullValue=''}" x:Name="GridBox" SizeChanged="Grid_SizeChanged">
         <Grid.RowDefinitions>
             <RowDefinition Height="*"/>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
-        <TextBlock TextWrapping="WrapWithOverflow" Text="{Binding Description}" Foreground="White" Margin="2,0,0,0"  />
-        <Label HorizontalAlignment="Left" Content="{Binding Roomcode}" Grid.Row="2" VerticalAlignment="Bottom" Foreground="White" MaxHeight="30" Padding="0" Margin="2,2,0,0"/>
-        <Label HorizontalAlignment="Right" Content="{Binding Classcode}" Grid.Row="2" VerticalAlignment="Bottom" Foreground="White" MaxHeight="30" Padding="0" Margin="0,2,2,0"/>
+        <Viewbox Margin="2,0" StretchDirection="UpOnly" VerticalAlignment="Top" HorizontalAlignment="Left" MaxWidth="{Binding ActualWidth,  ElementName=DescriptionText,  Converter={local:MultiplyConverter Multiplier=1.4}}" >
+            <TextBlock x:Name="DescriptionText"  TextWrapping="WrapWithOverflow" Text="{Binding Description, TargetNullValue=''}" Foreground="White" MaxWidth="{Binding ElementName=GridBox, Path=ActualWidth}"/>
+        </Viewbox>
 
-        <Label x:Name="TeacherLabel" HorizontalAlignment="Left" Content="{Binding Teacher}" Grid.Row="1" VerticalAlignment="Bottom" Padding="0" Visibility="Collapsed" Foreground="White" Margin="2,0,0,0"/>
-        <Label x:Name="PeriodLabel" HorizontalAlignment="Right" Content="{Binding period}" Grid.Row="1" VerticalAlignment="Bottom" Padding="0" Visibility="Collapsed" Foreground="White" Margin="0,0,2,0"/>
+        <Grid Grid.Row="2" Margin="0" MaxHeight="30">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="10"/>
+                <ColumnDefinition Width="auto"/>
+            </Grid.ColumnDefinitions>
+
+            <Viewbox Grid.Column="0" Margin="2,2,0,0" StretchDirection="DownOnly" HorizontalAlignment="Left">
+                <Label Content="{Binding Roomcode, TargetNullValue=''}" Foreground="White" Padding="0" FontSize="{Binding RelativeSource={RelativeSource Mode=FindAncestor, AncestorType={x:Type local:Period}}, Path=SecondaryFontSize}"/>
+            </Viewbox>
+            <Viewbox  Grid.Column="2" Margin="0,2,2,0" StretchDirection="DownOnly" HorizontalAlignment="Right" >
+                <Label Content="{Binding Classcode, TargetNullValue=''}" Foreground="White" Padding="0" FontSize="{Binding RelativeSource={RelativeSource Mode=FindAncestor, AncestorType={x:Type local:Period}}, Path=SecondaryFontSize}"/>
+            </Viewbox>
+        </Grid>
+
+
+        <Grid Grid.Row="1" Margin="0" MaxHeight="30">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="10"/>
+                <ColumnDefinition Width="auto"/>
+            </Grid.ColumnDefinitions>
+            <Viewbox Grid.Column="0" Margin="2,0,0,0" StretchDirection="DownOnly" HorizontalAlignment="Left">
+                <Label x:Name="TeacherLabel"  Content="{Binding Teacher, TargetNullValue=''}" Visibility="Collapsed" Foreground="White" Padding="0" FontSize="{Binding RelativeSource={RelativeSource Mode=FindAncestor, AncestorType={x:Type local:Period}}, Path=SecondaryFontSize}"/>
+            </Viewbox>
+            <Viewbox Grid.Column="2"  Margin="0,0,2,0" StretchDirection="DownOnly" HorizontalAlignment="Right">
+                <Label x:Name="PeriodLabel"  Content="{Binding period, TargetNullValue=''}" VerticalAlignment="Bottom" Visibility="Collapsed" Foreground="White" Padding="0" FontSize="{Binding RelativeSource={RelativeSource Mode=FindAncestor, AncestorType={x:Type local:Period}}, Path=SecondaryFontSize}"/>
+            </Viewbox>
+        </Grid>
+
 
     </Grid>
 </UserControl>

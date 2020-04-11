@@ -41,46 +41,37 @@ namespace MYTGS
                 {
                     PropertyChanged(this, new PropertyChangedEventArgs("FFEventsLastUpdated"));
                 }
-                DBUpdateItem("Trinity", new SettingsItem("FFEventsLastUpdated", JsonConvert.SerializeObject(value)));
+                DBUpdateItem(dbSchool, new SettingsItem("FFEventsLastUpdated", JsonConvert.SerializeObject(value)));
             }
         }
         private DateTime ffEventsLastUpdated { get; set; }
 
-        private void InitializeEventDB(string school)
+        private void InitializeEventDB(SQLiteConnection sqldb)
         {
-            var databasePath = Path.Combine(Environment.ExpandEnvironmentVariables((string)Properties.Settings.Default["AppPath"]), school + ".db");
+            sqldb.CreateTable<FFEvent>();
+            sqldb.CreateTable<SettingsItem>();
+            sqldb.CreateTable<ColourItem>();
+        }
 
-            using (SQLiteConnection db = new SQLiteConnection(databasePath))
+        public string GetLastEventUpdate(SQLiteConnection sqldb, string Name)
+        {
+
+            TableQuery<SettingsItem> results = sqldb.Table<SettingsItem>().Where(s => s.name == Name);
+            if (results.Count() > 0)
             {
-                db.CreateTable<FFEvent>();
-                db.CreateTable<SettingsItem>();
-                db.CreateTable<ColourItem>();
+                return results.First().value;
+            }
+            else
+            {
+                return "";
             }
         }
 
-        public string GetLastEventUpdate(string school, string Name)
-        {
-            var databasePath = Path.Combine(Environment.ExpandEnvironmentVariables((string)Properties.Settings.Default["AppPath"]), school + ".db");
-
-            using (SQLiteConnection db = new SQLiteConnection(databasePath))
-            {
-                TableQuery<SettingsItem> results = db.Table<SettingsItem>().Where(s => s.name == Name);
-                if (results.Count() > 0)
-                {
-                    return results.First().value;
-                }
-                else
-                {
-                    return "";
-                }
-            }
-        }
-
-        private void LoadEventInfo(string school)
+        private void LoadEventInfo(SQLiteConnection sqldb)
         {
             try
             {
-                ffEventsLastUpdated = JsonConvert.DeserializeObject<DateTime>(GetLastEventUpdate(school, "FFEventsLastUpdated"));
+                ffEventsLastUpdated = JsonConvert.DeserializeObject<DateTime>(GetLastEventUpdate(sqldb, "FFEventsLastUpdated"));
             }
             catch
             {
@@ -88,148 +79,95 @@ namespace MYTGS
             }
         }
 
-        private void DBInsert(string school, object obj)
+        private void DBInsert(SQLiteConnection sqldb, object obj)
         {
-            var databasePath = Path.Combine(Environment.ExpandEnvironmentVariables((string)Properties.Settings.Default["AppPath"]), school + ".db");
 
-            using (SQLiteConnection db = new SQLiteConnection(databasePath))
-            {
-                db.InsertWithChildren(obj);
-            }
+            sqldb.InsertWithChildren(obj);
         }
 
-        private void DBUpdateItem(string school, object obj)
+        private void DBUpdateItem(SQLiteConnection sqldb, object obj)
         {
-            var databasePath = Path.Combine(Environment.ExpandEnvironmentVariables((string)Properties.Settings.Default["AppPath"]), school + ".db");
 
-            using (SQLiteConnection db = new SQLiteConnection(databasePath))
-            {
-                db.InsertOrReplaceWithChildren(obj);
-            }
+            sqldb.InsertOrReplaceWithChildren(obj);
         }
 
-        private void DBInsertAll(string school, System.Collections.IEnumerable obj)
+        private void DBInsertAll(SQLiteConnection sqldb, System.Collections.IEnumerable obj)
         {
-            var databasePath = Path.Combine(Environment.ExpandEnvironmentVariables((string)Properties.Settings.Default["AppPath"]), school + ".db");
 
-            using (SQLiteConnection db = new SQLiteConnection(databasePath))
-            {
-                db.InsertAllWithChildren(obj);
-            }
+            sqldb.InsertAllWithChildren(obj);
         }
 
-        private void DBInsertOrReplace(string school, System.Collections.IEnumerable obj)
+        private void DBInsertOrReplace(SQLiteConnection sqldb, System.Collections.IEnumerable obj)
         {
-            var databasePath = Path.Combine(Environment.ExpandEnvironmentVariables((string)Properties.Settings.Default["AppPath"]), school + ".db");
-            
-            using (SQLiteConnection db = new SQLiteConnection(databasePath))
-            {
-                db.InsertOrReplaceAllWithChildren(obj);
-            }
+
+            sqldb.InsertOrReplaceAllWithChildren(obj);
         }
 
-        private void DBUpdateEvents(string school, FFEvent[] obj, DateTime StartUTC, DateTime EndUTC)
+        private void DBUpdateEvents(SQLiteConnection sqldb, FFEvent[] obj, DateTime StartUTC, DateTime EndUTC)
         {
-            //Get path to database
-            var databasePath = Path.Combine(Environment.ExpandEnvironmentVariables((string)Properties.Settings.Default["AppPath"]), school + ".db");
 
-            //Open connection
-            using (SQLiteConnection db = new SQLiteConnection(databasePath))
-            {
-                //Find all entries for the given period that no longer exist
-                var deleted = db.Table<FFEvent>().Where(s => (s.start >= StartUTC && s.end <= EndUTC ))
-                    .ToList().Select(s => s.guid).Except(obj.Select(p => p.guid));
+            //Find all entries for the given period that no longer exist
+            var deleted = sqldb.Table<FFEvent>().Where(s => (s.start >= StartUTC && s.end <= EndUTC))
+                .ToList().Select(s => s.guid).Except(obj.Select(p => p.guid));
 
-                //Delete the lost entries
-                db.DeleteAllIds<FFEvent>(deleted);
+            //Delete the lost entries
+            sqldb.DeleteAllIds<FFEvent>(deleted);
 
-                //Insert/update all event entries
-                db.InsertOrReplaceAllWithChildren(obj);
-            }
+            //Insert/update all event entries
+            sqldb.InsertOrReplaceAllWithChildren(obj);
         }
 
-        private FFEvent[] DBGetAllEvents(string school)
+        private FFEvent[] DBGetAllEvents(SQLiteConnection sqldb)
         {
-            //Get path to database
-            var databasePath = Path.Combine(Environment.ExpandEnvironmentVariables((string)Properties.Settings.Default["AppPath"]), school + ".db");
 
-            //Open connection
-            using (SQLiteConnection db = new SQLiteConnection(databasePath))
-            {
-                //Return the table in array form
-                return db.Table<FFEvent>().ToArray();
-            }
+            //Return the table in array form
+            return sqldb.Table<FFEvent>().ToArray();
         }
 
-        private void DBWipe(string school)
+        private void DBWipe(SQLiteConnection sqldb)
         {
-            //Get path to database
-            var databasePath = Path.Combine(Environment.ExpandEnvironmentVariables((string)Properties.Settings.Default["AppPath"]), school + ".db");
 
-            //Open connection
-            using (SQLiteConnection db = new SQLiteConnection(databasePath))
-            {
-                //Return the table in array form
-                db.DeleteAll<SettingsItem>();
-                db.DeleteAll<FFEvent>();
-                db.DeleteAll<ColourItem>();
-            }
+            //Return the table in array form
+            sqldb.DeleteAll<SettingsItem>();
+            sqldb.DeleteAll<FFEvent>();
+            sqldb.DeleteAll<ColourItem>();
+            sqldb.DeleteAll<FullTask>();
         }
 
-        private FFEvent[] DBGetDayEvents(string school, DateTime Day)
+        private FFEvent[] DBGetDayEvents(SQLiteConnection sqldb, DateTime Day)
         {
-            //Get path to database
-            var databasePath = Path.Combine(Environment.ExpandEnvironmentVariables((string)Properties.Settings.Default["AppPath"]), school + ".db");
 
-            //Open connection
-            using (SQLiteConnection db = new SQLiteConnection(databasePath))
-            {
-                //Get the start of the local day to utc
-                DateTime start = new DateTime(Day.Year, Day.Month, Day.Day, 0, 0, 0).ToUniversalTime();
-                //Get the end of the local day to utc
-                DateTime end = new DateTime(Day.Year, Day.Month, Day.Day, 0, 0, 0).AddDays(1).ToUniversalTime();
+            //Get the start of the local day to utc
+            DateTime start = new DateTime(Day.Year, Day.Month, Day.Day, 0, 0, 0).ToUniversalTime();
+            //Get the end of the local day to utc
+            DateTime end = new DateTime(Day.Year, Day.Month, Day.Day, 0, 0, 0).AddDays(1).ToUniversalTime();
 
-                //Find all events that meet criteria and return array
-                return db.Table<FFEvent>().Where(s => (s.start >= start && s.end <= end)).ToArray();
-            }
+            //Find all events that meet criteria and return array
+            return sqldb.Table<FFEvent>().Where(s => (s.start >= start && s.end <= end)).ToArray();
         }
 
-        private FFEvent[] DBGetEventsBetween(string school, DateTime startUTC, DateTime endUTC)
+        private FFEvent[] DBGetEventsBetween(SQLiteConnection sqldb, DateTime startUTC, DateTime endUTC)
         {
-            //Get path to database
-            var databasePath = Path.Combine(Environment.ExpandEnvironmentVariables((string)Properties.Settings.Default["AppPath"]), school + ".db");
-
-            //Open connection
-            using (SQLiteConnection db = new SQLiteConnection(databasePath))
-            {
-                //Find all events that meet criteria and return array
-                return db.Table<FFEvent>().Where(s => (s.start >= startUTC && s.end <= endUTC)).ToArray();
-            }
+            //Find all events that meet criteria and return array
+            return sqldb.Table<FFEvent>().Where(s => (s.start >= startUTC && s.end <= endUTC)).ToArray();
         }
 
-        private ColourItem DBGetColour(string school, string name)
+        private ColourItem DBGetColour(SQLiteConnection sqldb, string name)
         {
-            //Get path to database
-            var databasePath = Path.Combine(Environment.ExpandEnvironmentVariables((string)Properties.Settings.Default["AppPath"]), school + ".db");
-
-            //Open connection
-            using (SQLiteConnection db = new SQLiteConnection(databasePath))
+            //Find all events that meet criteria and return array
+            var temp = dbSchool.Table<ColourItem>().Where(s => s.name == name);
+            if (temp.Count() > 0)
             {
-                //Find all events that meet criteria and return array
-                var temp = db.Table<ColourItem>().Where(s => s.name == name);
-                if (temp.Count() > 0)
-                {
-                    ColourItem t = temp.First();
-                    t.value = JsonConvert.DeserializeObject<Brush>(t.valueBlobbed);
-                    return t;
-                }
-                else
-                {
-                    Brush random = ColourPallete[colourpos % ColourPallete.Count];
-                    colourpos++;
-                    DBInsert(school, new ColourItem(name, random));
-                    return new ColourItem(name, random);
-                }
+                ColourItem t = temp.First();
+                t.value = JsonConvert.DeserializeObject<Brush>(t.valueBlobbed);
+                return t;
+            }
+            else
+            {
+                Brush random = ColourPallete[colourpos % ColourPallete.Count];
+                colourpos++;
+                DBInsert(sqldb, new ColourItem(name, random));
+                return new ColourItem(name, random);
             }
         }
 
@@ -253,20 +191,28 @@ namespace MYTGS
 
         }
 
-        Grid[] PlannerGrids = new Grid[7];
         private void GeneratePlanner(DateTime CurrentTime, int left = 3, int right = 3)
         {
             PlannerGrid.Children.Clear();
 
             for (int i = 0; i <= left+right; i++)
             {
-                TimetablePeriod[] dayperiods = Timetablehandler.ParseEventsToPeriods(DBGetDayEvents("Trinity", CurrentTime.AddDays(-left+i)));
+                TimetablePeriod[] dayperiods = Timetablehandler.ParseEventsToPeriods(DBGetDayEvents(dbSchool, CurrentTime.AddDays(-left+i)));
 
                 System.Windows.Controls.Label first = new System.Windows.Controls.Label();
                 first.FontSize = 14;
                 first.Foreground = new SolidColorBrush(Color.FromRgb(0x5D, 0x89, 0xFF));
                 first.HorizontalAlignment = System.Windows.HorizontalAlignment.Center;
-                first.Content = CurrentTime.AddDays(-left + i).ToShortDateString() + " " + CurrentTime.AddDays(-left + i).DayOfWeek;
+
+                if (CalculateTimetableDay(CurrentTime.AddDays(-left + i)) == 0)
+                {
+                    first.Content = CurrentTime.AddDays(-left + i).ToShortDateString() + " " + CurrentTime.AddDays(-left + i).DayOfWeek;
+                }
+                else
+                {
+                    first.Content = CurrentTime.AddDays(-left + i).ToShortDateString() + " Day " + CalculateTimetableDay(CurrentTime.AddDays(-left + i));
+                }
+
                 if (CurrentTime.AddDays(-left + i).ToShortDateString() == DateTime.Now.ToShortDateString())
                 {
                     first.Foreground = Brushes.OrangeRed;
@@ -282,11 +228,12 @@ namespace MYTGS
                     }
                     Period pp = new Period();
                     pp.FontSize = 14;
+                    pp.SecondaryFontSize = 12;
                     pp.MouseDown += Pp_MouseDown;
                     pp.SetValue(Grid.ColumnProperty, i);
                     pp.SetValue(Grid.RowProperty, k+1);
                     pp.Margin = new System.Windows.Thickness(1);
-                    pp.Background = DBGetColour("Trinity", dayperiods[k].Classcode).value;
+                    pp.Background = DBGetColour(dbSchool, dayperiods[k].Classcode).value;
                     pp.DataContext = dayperiods[k];
                     PlannerGrid.Children.Add(pp);
                 }
@@ -299,14 +246,13 @@ namespace MYTGS
         private void Pp_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
             //((TimetablePeriod)((Period)sender).DataContext).Classcode
-            ColorDialog picker = new ColorDialog();
             picker.AllowFullOpen = true;
             Color ck = ((SolidColorBrush)((Period)sender).Background).Color;
             picker.Color = System.Drawing.Color.FromArgb(ck.A, ck.R, ck.G, ck.B);
             if (picker.ShowDialog() == System.Windows.Forms.DialogResult.OK)
             {
                 SolidColorBrush brush = new SolidColorBrush(Color.FromArgb(picker.Color.A, picker.Color.R, picker.Color.G, picker.Color.B));
-                DBUpdateItem("Trinity" ,new ColourItem(((TimetablePeriod)((Period)sender).DataContext).Classcode, brush));
+                DBUpdateItem(dbSchool ,new ColourItem(((TimetablePeriod)((Period)sender).DataContext).Classcode, brush));
                 GeneratePlanner(PlannerDate);
             }
 

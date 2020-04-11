@@ -16,14 +16,16 @@ using System.Windows.Shapes;
 namespace MYTGS
 {
     /// <summary>
-    /// Interaction logic for TaskControl.xaml
+    /// Interaction logic for ResponseControl.xaml
     /// </summary>
-    public partial class TaskControl : UserControl
+    public partial class ResponseControl : UserControl
     {
-        public TaskControl()
+        public string Titlet { get; set; }
+        public string Datet { get; set; }
+        public ResponseControl()
         {
             InitializeComponent();
+            DataContext = this;
         }
     }
-
 }

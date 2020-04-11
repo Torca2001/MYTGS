@@ -15,10 +15,12 @@ using System.Windows.Input;
 using System.Net;
 using System.ComponentModel;
 using System.Text.RegularExpressions;
-using mshtml;
+using HtmlAgilityPack;
 using System.Windows.Media.Imaging;
 using System.IO.Pipes;
 using System.Collections.ObjectModel;
+using System.Threading;
+using SQLite;
 
 namespace MYTGS
 {
@@ -30,15 +32,18 @@ namespace MYTGS
         private Logger logger = LogManager.GetCurrentClassLogger();
         //set to use only MYTGS firefly cloud 
         Firefly.Firefly FF { set; get; } = new Firefly.Firefly("MYTGS");
-        Dictionary<int,Firefly.FullTask> Tasks = new Dictionary<int,Firefly.FullTask>();
+        public ObservableCollection<Firefly.FullTask> TaskSearch { get; set; } = new ObservableCollection<Firefly.FullTask>();
         DispatcherTimer TenTimer = new DispatcherTimer();
         DispatcherTimer UpdateTimer = new DispatcherTimer();
         public ObservableCollection<TimetablePeriod> EPRChanges { get; set; } = new ObservableCollection<TimetablePeriod>();
         TimetableClock ClockWindow = new TimetableClock();
         DateTime LastDayCheck = DateTime.Now;
         DateTime PlannerDate = DateTime.Now;
+        Thread SearchThread = null;
         int EPRWait = 0;
         bool PlannerCurrentDay = true;
+        private bool IsFirstTime = false;
+
 
         public List<TimetablePeriod> ClockSchedule { get => ClockWindow.Schedule; }
 
@@ -48,6 +53,10 @@ namespace MYTGS
         Settings settings = new Settings();
         bool safeclose = false;
         bool offlineMode = false;
+        const string SchoolDBFile = "Trinity";
+
+        //Get path to database
+        SQLiteConnection dbSchool = null;
 
         private string TasksPath = Environment.ExpandEnvironmentVariables((string)Properties.Settings.Default["AppPath"]) + "Tasks\\";
 
@@ -57,8 +66,21 @@ namespace MYTGS
             {
                 Directory.CreateDirectory(Environment.ExpandEnvironmentVariables((string)Properties.Settings.Default["AppPath"]));
             }
+
+            try
+            {
+                dbSchool = new SQLiteConnection(Path.Combine(Environment.ExpandEnvironmentVariables((string)Properties.Settings.Default["AppPath"]), SchoolDBFile + ".db"));
+            }
+            catch (Exception e)
+            {
+                logger.Error(e, "Catastrophic Error - DB Failed to initalize correctly!");
+                MessageBox.Show("Database system has failed to start! Ensure application has access to folder %appdata%/MYTGS", "Databse Error");
+                dbSchool = new SQLiteConnection(":memory:"); //Use in memory Database
+            }
+
             settings.Initalize();
 
+            //Initalize Pipe server for single instance only checking
             NamedPipeServerStream pipeServer = new NamedPipeServerStream("MYTGS",
                PipeDirection.InOut, 1, PipeTransmissionMode.Message, PipeOptions.Asynchronous);
 
@@ -70,17 +92,19 @@ namespace MYTGS
             Application.Current.SessionEnding += Current_SessionEnding;
             ClockWindow.PropertyChanged += ClockWindow_PropertyChanged;
 
-            InitializeEventDB("Trinity");
-            InitializeCalendarDB("Trinity");
-            
+            //Initalize SQL Database's tables
+            InitializeEventDB(dbSchool);
+            InitializeCalendarDB(dbSchool);
+            InitializeTasksDB(dbSchool);
+            InitializeCacheDB(dbSchool);
+
+
             //Loads data about last time DB was updated
-            LoadEventInfo("Trinity");
+            LoadCache(dbSchool);
+            LoadEventInfo(dbSchool);
             LoadSettings();
             
             FF.OnLogin += FF_OnLogin;
-
-            //InitializeTasksDB("Trinity");
-
             // 10 minutes in milliseconds
             TenTimer.Interval = TimeSpan.FromMinutes(10);
             TenTimer.Tick += TenTimer_Tick;
@@ -95,7 +119,9 @@ namespace MYTGS
                 UpdateVerLabel.Content = "Updates V: " + System.Deployment.Application.ApplicationDeployment.CurrentDeployment.CurrentVersion;
             this.DataContext = this;
             bool Firsttime = settings.GetSettings("FirstTime") == "";
+            IsFirstTime = Firsttime;
 
+            earlyfinishcheck.IsChecked = IsTodayEarlyFinish(dbSchool);
 
             //test.Content = JsonConvert.SerializeObject(DateTime.Now.ToUniversalTime());
             ClockWindow.Background = new SolidColorBrush(Color.FromArgb(0, 255, 255, 255));
@@ -121,9 +147,12 @@ namespace MYTGS
 
             GeneratePlanner(DateTime.Now);
 
-            List<TimetablePeriod> todayPeriods = Timetablehandler.ProcessForUse(DBGetDayEvents("Trinity", DateTime.Now), DateTime.UtcNow, false, IsEventsUptoDate(4), false);
+            CheckForEarlyFinishes(dbSchool);
+            List<TimetablePeriod> todayPeriods = Timetablehandler.ProcessForUse(DBGetDayEvents(dbSchool, DateTime.Now), DateTime.UtcNow, IsTodayEarlyFinish(dbSchool), IsEventsUptoDate(4), false);
             todayPeriods = EPRCheck(LastEPR, todayPeriods);
             ClockWindow.SetSchedule(todayPeriods);
+            UpdateFirstDay(LastEPR.Date, LastEPR.Day);
+            DashboardMessageToXaml(FF.DashboardLocateMessage(Dashboardstring));
 
             menu.MenuItems.Add("Home", new EventHandler(HomeMenu_Click));
             menu.MenuItems.Add("Move", new EventHandler(MoveMenu_Click));
@@ -133,38 +162,11 @@ namespace MYTGS
             nIcon.DoubleClick += HomeMenu_Click;
             nIcon.MouseDown += NIcon_MouseDown;
             nIcon.Visible = true;
-
-            LoadCachedTasks();
             
-            logger.Info("Beginning Login checks");
-            if (!FF.LoadKey())
-            {
-                if (FF.KeyAvailable())
-                {
-                    offlineMode = true;
-                    if (FF.Unauthorised)
-                    {
-                        DisplayMsg("App Unauthorised - Login Again");
-                        MessageGrid.MouseDown += MessageLogin;
-                    }
-                    else
-                    {
-                        DisplayMsg("No connection - Restart to go Online");
-                        MessageGrid.MouseDown += NoConnectionRestart;
-                    }
-                }
-                else
-                {
-                    DisplayMsg("Please Login", new SolidColorBrush(Color.FromRgb(0x4E, 0x73, 0xDF)));
 
-                    //Open login ui automatically
-                    if (Firsttime)
-                    {
-                        FF.LoginUI();
-                    }
-                    MessageGrid.MouseDown += MessageLogin;
-                }
-            }
+            FF.OnSiteConnect += SiteConnected;
+            FF.SchoolCheckAsync("MYTGS");
+
             TenTimer.Start();
             UpdateTimer.Start();
             using (RegistryKey key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true))
@@ -181,9 +183,47 @@ namespace MYTGS
             StartupCheckBox.IsChecked = IsApplicationInStartup();
             StartupCheckBox.Checked += StartupCheckBox_Checked;
 
-            UpdateCalendar("Trinity");
-            CheckForEarlyFinishes("Trinity");
+            UpdateCalendar(dbSchool);
+            CheckForEarlyFinishes(dbSchool);
+            TwoWeekTimetable = LocateTwoWeeks(FirstDayDate);
+            GenerateTwoWeekTimetable();
+            UpdateSearchResults();
+        }
 
+        private void SiteConnected(object sender, EventArgs e)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                logger.Info("Beginning Login checks");
+                if (!FF.LoadKey())
+                {
+                    if (FF.KeyAvailable())
+                    {
+                        offlineMode = true;
+                        if (FF.Unauthorised)
+                        {
+                            DisplayMsg("App Unauthorised - Login Again");
+                            MessageGrid.MouseDown += MessageLogin;
+                        }
+                        else
+                        {
+                            DisplayMsg("No connection - Restart to go Online");
+                            MessageGrid.MouseDown += NoConnectionRestart;
+                        }
+                    }
+                    else
+                    {
+                        DisplayMsg("Please Login", new SolidColorBrush(Color.FromRgb(0x4E, 0x73, 0xDF)));
+
+                        //Open login ui automatically
+                        if (IsFirstTime)
+                        {
+                            FF.LoginUI();
+                        }
+                        MessageGrid.MouseDown += MessageLogin;
+                    }
+                }
+            });
         }
 
         private void UpdateTimer_Tick(object sender, EventArgs e)
@@ -278,42 +318,66 @@ namespace MYTGS
             }
         }
 
-        private void LoadCachedTasks()
-        {
-            logger.Info("Loading Local tasks");
-            if (Directory.Exists(TasksPath))
-            {
-                string[] TaskIDs = Directory.GetDirectories(TasksPath);
-                TaskIDs.Reverse();
-                int loadedtasks = 0;
-                foreach (string TaskID in TaskIDs)
-                {
-                    try
-                    {
-                        if (File.Exists(TaskID + "\\Task.json"))
-                        {
-                            Firefly.FullTask tmp = JsonConvert.DeserializeObject<Firefly.FullTask>(File.ReadAllText(TaskID + "\\Task.json"));
-                            Tasks.Add(tmp.id, tmp);
-                            loadedtasks += 1;
-                        }
-                    }
-                    catch
-                    {
-                        logger.Warn("Failed to load task - " + TaskID.Substring(TaskID.LastIndexOf("\\")));
-                    }
-                }
-                logger.Info("Successfully loaded " + loadedtasks + " tasks");
-            }
-            Tasks = Tasks.OrderBy(p => p.Value.dueDate).Reverse().ToDictionary(k => k.Key, k => k.Value);
-        }
+        //private void LoadCachedTasks()
+        //{
+        //    logger.Info("Loading Local tasks");
+        //    if (Directory.Exists(TasksPath))
+        //    {
+        //        string[] TaskIDs = Directory.GetDirectories(TasksPath);
+        //        TaskIDs.Reverse();
+        //        int loadedtasks = 0;
+        //        foreach (string TaskID in TaskIDs)
+        //        {
+        //            try
+        //            {
+        //                if (File.Exists(TaskID + "\\Task.json"))
+        //                {
+        //                    Firefly.FullTask tmp = JsonConvert.DeserializeObject<Firefly.FullTask>(File.ReadAllText(TaskID + "\\Task.json"));
+        //                    Tasks.Add(tmp.id, tmp);
+        //                    loadedtasks += 1;
+        //                }
+        //            }
+        //            catch
+        //            {
+        //                logger.Warn("Failed to load task - " + TaskID.Substring(TaskID.LastIndexOf("\\")));
+        //            }
+        //        }
+        //        logger.Info("Successfully loaded " + loadedtasks + " tasks");
+        //    }
+        //    Tasks = Tasks.OrderBy(p => p.Value.dueDate).Reverse().ToDictionary(k => k.Key, k => k.Value);
+        //}
 
+        DateTime LastTenTimerCheck = DateTime.Now;
         private void TenTimer_Tick(object sender, EventArgs e)
         {
             //Check for changes
             //UpdateTasks(TasksPath);
+
+            if (DateTime.Now.ToShortDateString() != LastTenTimerCheck.ToShortDateString())
+            {
+                LastTenTimerCheck = DateTime.Now;
+
+                //Property change event so ui will react
+                if (PropertyChanged != null)
+                {
+                    GenerateTwoWeekTimetable();
+                    PropertyChanged(this, new PropertyChangedEventArgs("CurrentTimetableDay"));
+                }
+            }
+
             if (offlineMode == false)
             {
-                if (LastEPR.Date.Day < DateTime.Now.Day && LastEPR.Date.Month < DateTime.Now.Month && LastEPR.Date.Year < DateTime.Now.Year)
+                UpdateCalendar(dbSchool);
+                CheckForEarlyFinishes(dbSchool);
+                
+                Firefly.FullTask[] Tasks = FF.GetAllTasksByIds(FF.GetIds(TaskLastFetch));
+                if (Tasks != null)
+                {
+                    TaskLastFetch = DateTime.UtcNow;
+                    DBInsertOrReplace(dbSchool, Tasks);
+                }
+
+                if (DateTime.Now.DayOfWeek != DayOfWeek.Saturday && DateTime.Now.DayOfWeek != DayOfWeek.Sunday && LastEPR.Date.Day < DateTime.Now.Day && LastEPR.Date.Month < DateTime.Now.Month && LastEPR.Date.Year < DateTime.Now.Year)
                 {
                     try
                     {
@@ -322,7 +386,8 @@ namespace MYTGS
                         {
                             EPRstring = EPRstr;
                             LastEPR = EPRHandler.ProcessEPR(EPRstr);
-                            ClockWindow.SetSchedule(EPRCheck(LastEPR, ClockWindow.Schedule, false));
+                            UpdateFirstDay(LastEPR.Date, LastEPR.Day);
+                            ClockWindow.SetSchedule(EPRCheck(LastEPR, ClockWindow.Schedule, true));
                         }
                     }
                     catch
@@ -347,6 +412,7 @@ namespace MYTGS
                         {
                             EPRstring = EPRstr;
                             LastEPR = EPRHandler.ProcessEPR(EPRstr);
+                            UpdateFirstDay(LastEPR.Date, LastEPR.Day);
                             ClockWindow.SetSchedule(EPRCheck(LastEPR, ClockWindow.Schedule, false));
                         }
                     }
@@ -355,6 +421,16 @@ namespace MYTGS
                         logger.Warn("EPR Processing failed");
                     }
 
+                    string tempdash = FF.DashboardString();
+                    if (tempdash != null)
+                    {
+                        Dashboardstring = tempdash;
+                    }
+                    Dispatcher.Invoke(() =>
+                    {
+                        DashboardMessageToXaml(FF.DashboardLocateMessage(Dashboardstring));
+                    });
+
                     Dispatcher.Invoke(() => {
 
                         eprbrowser.NavigateToString("<html><head><meta http-equiv=\"X-UA-Compatible\" content=\"IE=10\"><style>table {width: 100%; border: 1px solid #333; border-collapse: collapse !important;}td {border-right: 1px solid #333; padding: 0.375rem;} tr:not(:last-child) {border-bottom: 1px solid #ccc;}</style></head><body>" + EPRstring + "</body></html>");
@@ -362,16 +438,16 @@ namespace MYTGS
                 }
                 else
                 {
-                    EPRWait += 1;
+                    EPRWait++;
                 }
 
                 if (LastDayCheck.ToShortDateString() != DateTime.Now.ToShortDateString())
                 {
                     LastDayCheck = DateTime.Now;
-                    Firefly.FFEvent[] Events = FF.GetEvents(DateTime.Now.AddDays(-15), DateTime.Now.AddDays(15));
+                    Firefly.FFEvent[] Events = FF.GetEvents(DateTime.UtcNow.AddDays(-15), DateTime.UtcNow.AddDays(15));
                     if (Events != null)
                     {
-                        DBUpdateEvents("Trinity", Events, DateTime.UtcNow.AddDays(-15), DateTime.UtcNow.AddDays(15));
+                        DBUpdateEvents(dbSchool, Events, DateTime.UtcNow.AddDays(-15), DateTime.UtcNow.AddDays(15));
                         FFEventsLastUpdated = DateTime.UtcNow;
                     }
                     
@@ -381,11 +457,18 @@ namespace MYTGS
                     }
                     GeneratePlanner(PlannerDate);
 
-                    List<TimetablePeriod> todayPeriods = Timetablehandler.ProcessForUse(DBGetDayEvents("Trinity", DateTime.Now), DateTime.UtcNow, false, true, false);
+
+                    List<TimetablePeriod> todayPeriods = Timetablehandler.ProcessForUse(DBGetDayEvents(dbSchool, DateTime.Now), DateTime.UtcNow, IsTodayEarlyFinish(dbSchool), true, false);
                     todayPeriods = EPRCheck(LastEPR, todayPeriods, true);
                     ClockWindow.SetSchedule(todayPeriods);
 
                 }
+            }
+            else
+            {
+                List<TimetablePeriod> todayPeriods = Timetablehandler.ProcessForUse(DBGetDayEvents(dbSchool, DateTime.Now), DateTime.UtcNow, IsTodayEarlyFinish(dbSchool), true, false);
+                todayPeriods = EPRCheck(LastEPR, todayPeriods, true);
+                ClockWindow.SetSchedule(todayPeriods);
             }
         }
 
@@ -428,6 +511,12 @@ namespace MYTGS
         }
 
         //Event fired when successfully connected to Firefly
+        //
+        //
+        //       ON LOGIN
+        //
+        //---------------------------------------------------
+
         private void FF_OnLogin(object sender, EventArgs e)
         {
             logger.Info("Login successful!");
@@ -446,10 +535,16 @@ namespace MYTGS
                 TasksPath += "\\";
             //UpdateTasks(TasksPath);
 
-            //UpdateCalendar("Trinity");
+            UpdateCalendar(dbSchool);
 
             //TasksPath + "\\" + TaskID + "\\Task.json"
-            //Tasks = FF.GetAllTasksByIds(FF.GetAllIds()).Reverse().ToDictionary(pv => pv.id, pv => pv);
+            //Get tasks/ get all tasks if firsttime run
+            Firefly.FullTask[] Tasks = FF.GetAllTasksByIds(IsFirstTime ? FF.GetAllIds() : FF.GetIds(TaskLastFetch));
+            if (Tasks != null)
+            {
+                TaskLastFetch = DateTime.UtcNow;
+                DBInsertOrReplace(dbSchool, Tasks);
+            }
 
             string EPRstr = FF.EPR();
             if (EPRstr != null)
@@ -463,21 +558,22 @@ namespace MYTGS
                 EmailLabel.Content = FF.Email;
                 IDLabel.Content = FF.Username;
                 UserImage.Source = FF.GetUserImage();
-                TaskStack.ItemsSource = Tasks.Values;
+                UpdateSearchResults();
             });
 
             List<Firefly.FFEvent> TodayEvents = new List<Firefly.FFEvent>();
             //List<TimetablePeriod> periods = new List<TimetablePeriod>();
-            Firefly.FFEvent[] Events = FF.GetEvents(DateTime.Now.AddDays(-15), DateTime.Now.AddDays(15));
+
+            Firefly.FFEvent[] Events = FF.GetEvents(DateTime.UtcNow.AddDays(-30), DateTime.UtcNow.AddDays(30));
             if (Events != null)
             {
-                DBUpdateEvents("Trinity", Events, DateTime.UtcNow.AddDays(-15), DateTime.UtcNow.AddDays(15));
+                DBUpdateEvents(dbSchool, Events, DateTime.UtcNow.AddDays(-30), DateTime.UtcNow.AddDays(30));
                 FFEventsLastUpdated = DateTime.UtcNow;
             }
-            
 
-            List<TimetablePeriod> todayPeriods = Timetablehandler.ProcessForUse(DBGetDayEvents("Trinity", DateTime.Now), DateTime.UtcNow, false, true, false);
-            
+
+            List<TimetablePeriod> todayPeriods = Timetablehandler.ProcessForUse(DBGetDayEvents(dbSchool, DateTime.Now), DateTime.UtcNow, IsTodayEarlyFinish(dbSchool), true, false);
+
             //Check EPR for updates
             try
             {
@@ -492,6 +588,7 @@ namespace MYTGS
                 {
                     EPR = EPRHandler.ProcessEPR(EPRstr);
                     LastEPR = EPR;
+                    UpdateFirstDay(LastEPR.Date, LastEPR.Day);
                 }
 
                 todayPeriods = EPRCheck(EPR, todayPeriods);
@@ -504,41 +601,54 @@ namespace MYTGS
             //aply new schedule
             ClockWindow.SetSchedule(todayPeriods);
 
+            string tempdash = FF.DashboardString();
+            if (tempdash != null)
+            {
+                Dashboardstring = tempdash;
+                
+            }
+
+            Dispatcher.Invoke(() =>
+            {
+                DashboardMessageToXaml(FF.DashboardLocateMessage(Dashboardstring));
+                TwoWeekTimetable = LocateTwoWeeks(FirstDayDate);
+                GenerateTwoWeekTimetable();
+            });
             //Environment.ExpandEnvironmentVariables((string)Properties.Settings.Default["TasksPath"])
         }
 
-        private int[] UpdateTasks(string filepath)
-        {
-            int[] AllIDs = FF.GetAllIds();
-            Array.Reverse(AllIDs); //Reverse Order of the IDs 
-            List<int> NewIDs = new List<int>();
-            foreach (int ID in AllIDs)
-            {
-                if (Tasks.ContainsKey(ID))
-                {
-                    //Update the cached version
-                    Firefly.Response[] tmpresps= FF.GetResponseForID(ID);
-                    if (tmpresps == null)
-                        continue;
-                    Tasks[ID] = FF.UpdateResponses(Tasks[ID], tmpresps);
-                    SaveTask(filepath + ID + @"\Task.json" ,Tasks[ID]);
-                }
-                else
-                {
-                    NewIDs.Add(ID);
-                }
-            }
+        //private int[] UpdateTasks(string filepath)
+        //{
+        //    int[] AllIDs = FF.GetAllIds();
+        //    Array.Reverse(AllIDs); //Reverse Order of the IDs 
+        //    List<int> NewIDs = new List<int>();
+        //    foreach (int ID in AllIDs)
+        //    {
+        //        if (Tasks.ContainsKey(ID))
+        //        {
+        //            //Update the cached version
+        //            Firefly.Response[] tmpresps= FF.GetResponseForID(ID);
+        //            if (tmpresps == null)
+        //                continue;
+        //            Tasks[ID] = FF.UpdateResponses(Tasks[ID], tmpresps);
+        //            SaveTask(filepath + ID + @"\Task.json" ,Tasks[ID]);
+        //        }
+        //        else
+        //        {
+        //            NewIDs.Add(ID);
+        //        }
+        //    }
 
-            Firefly.FullTask[] tmp = FF.GetAllTasksByIds(NewIDs.ToArray());
-            foreach (Firefly.FullTask item in tmp)
-            {
-                Tasks.Add(item.id, item);
-                SaveTask(filepath + item.id + @"\Task.json", item);
-            }
+        //    Firefly.FullTask[] tmp = FF.GetAllTasksByIds(NewIDs.ToArray());
+        //    foreach (Firefly.FullTask item in tmp)
+        //    {
+        //        Tasks.Add(item.id, item);
+        //        SaveTask(filepath + item.id + @"\Task.json", item);
+        //    }
 
-            //return newly added items
-            return NewIDs.ToArray();
-        }
+        //    //return newly added items
+        //    return NewIDs.ToArray();
+        //}
         
         //Registry edits that don't require admin
         public void AddApplicationToStartup()
@@ -590,9 +700,12 @@ namespace MYTGS
 
         private void HomeMenu_Click(object sender, EventArgs e)
         {
-            ShowInTaskbar = true;
-            Show();
-            Activate();
+            Dispatcher.Invoke(() =>
+            {
+                ShowInTaskbar = true;
+                Show();
+                Activate();
+            });
         }
 
         private void MoveMenu_Click(object sender, EventArgs e)
@@ -627,11 +740,14 @@ namespace MYTGS
             }
         }
 
-        private void TaskStack_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        public void TaskStack_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
-            MainTabControl.SelectedIndex = 5;
+            GotoTaskpage();
         }
 
+        //Application Closing
+        //
+        //
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
             // Check if closing by the menu or system shutdown
@@ -642,6 +758,8 @@ namespace MYTGS
                 Hide();
                 return;
             }
+            dbSchool.Close();
+            settings.Close();
             ClockWindow?.Close();
         }
 
@@ -776,7 +894,7 @@ namespace MYTGS
                 case MessageBoxResult.Yes:
                     logger.Info("User logging out - Deleting user data");
                     FF.Logout();
-                    DBWipe("Trinity");
+                    DBWipe(dbSchool);
 
                     safeclose = true;
                     System.Windows.Forms.Application.Restart();
@@ -840,12 +958,133 @@ namespace MYTGS
                 }
 
                 EPRstring = EPRstr;
-
                 Dispatcher.Invoke(() => {
 
                     eprbrowser.NavigateToString("<html><head><meta http-equiv=\"X-UA-Compatible\" content=\"IE=10\"><style>table {width: 100%; border: 1px solid #333; border-collapse: collapse !important;}td {border-right: 1px solid #333; padding: 0.375rem;} tr:not(:last-child) {border-bottom: 1px solid #ccc;}</style></head><body>" + EPRstring + "</body></html>");
                 });
             });
+        }
+
+        private void Hyperlink_RequestNavigate(object sender, System.Windows.Navigation.RequestNavigateEventArgs e)
+        {
+            if (e.Uri.AbsoluteUri.StartsWith("http://") || e.Uri.AbsoluteUri.StartsWith("https://"))
+            {
+                System.Diagnostics.Process.Start(e.Uri.AbsoluteUri);
+                e.Handled = true;
+            }
+        }
+
+        private void Button_Click_5(object sender, RoutedEventArgs e)
+        {
+            MainTabControl.SelectedIndex = 7;
+        }
+
+        private void L_Click(object sender, RoutedEventArgs e)
+        {
+            UserEarlyFinishEvent(dbSchool, earlyfinishcheck.IsChecked == true);
+            CheckForEarlyFinishes(dbSchool);
+            List<TimetablePeriod> todayPeriods = Timetablehandler.ProcessForUse(DBGetDayEvents(dbSchool, DateTime.Now), DateTime.UtcNow, IsTodayEarlyFinish(dbSchool), IsEventsUptoDate(4), false);
+            ClockWindow.SetSchedule(todayPeriods);
+        }
+
+        private void SearchTextBox_Update(object sender, EventArgs e)
+        {
+            if (this.IsLoaded)
+                UpdateSearchResults();
+        }
+
+        private void UpdateSearchResults()
+        {
+            if (SearchThread != null && SearchThread.IsAlive)
+            {
+                SearchThread.Abort();
+            }
+
+            TaskSearchSpinner.Visibility = Visibility.Visible;
+            string searchtext = SearchTextBox.Text;
+            string teachertext = TaskTeacherSearchBox.Text;
+            string idtext = TaskIDSearchBox.Text;
+            string classtext = TaskClassSearchBox.Text;
+            int selindex = TaskSearchCombo.SelectedIndex;
+            bool deletecheck = (bool)TaskSearchDeletedCheck.IsChecked;
+            bool hiddencheck = (bool)TaskSearchHiddenCheck.IsChecked;
+            bool hideMarked = (bool)TaskSearchHideMarked.IsChecked;
+            SearchThread = new Thread(() =>
+            {
+                try
+                {
+                    var results = DBTaskSearch(dbSchool, searchtext, teachertext, idtext, classtext, selindex, deletecheck, hiddencheck, hideMarked);
+                    Dispatcher.Invoke(() =>
+                    {
+                        TaskSearchSpinner.Visibility = Visibility.Hidden;
+                        TaskSearch = new ObservableCollection<Firefly.FullTask>(results);
+                        PropertyChanged(this, new PropertyChangedEventArgs("TaskSearch"));
+                    });
+                }
+                catch(Exception e)
+                {
+                    logger.Warn(e, "Task Search error");
+                }
+            });
+            SearchThread.Start();
+        }
+
+        private void TaskSearchCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            //Prevent running on initalization
+            if (!this.IsLoaded)
+                return;
+
+                //Redo the order
+                switch (TaskSearchCombo.SelectedIndex)
+            {
+                case 1:
+                    //Oldest activity
+                    TaskSearch = new ObservableCollection<Firefly.FullTask>(TaskSearch.OrderBy(pv => pv.LatestestActivity));
+
+                    break;
+                case 2:
+                    //Latest due
+                    TaskSearch = new ObservableCollection<Firefly.FullTask>(TaskSearch.OrderByDescending(pv => pv.dueDate));
+                    break;
+                case 3:
+                    //Oldest due
+                    TaskSearch = new ObservableCollection<Firefly.FullTask>(TaskSearch.OrderBy(pv => pv.dueDate));
+
+                    break;
+                case 4:
+                    //latest set
+                    TaskSearch = new ObservableCollection<Firefly.FullTask>(TaskSearch.OrderByDescending(pv => pv.setDate));
+
+                    break;
+                case 5:
+                    //oldest set
+                    TaskSearch = new ObservableCollection<Firefly.FullTask>(TaskSearch.OrderBy(pv => pv.setDate));
+
+                    break;
+                default:
+                    //latest activity
+                    TaskSearch = new ObservableCollection<Firefly.FullTask>(TaskSearch.OrderByDescending(pv => pv.LatestestActivity));
+
+                    break;
+            }
+            PropertyChanged(this, new PropertyChangedEventArgs("TaskSearch"));
+        }
+
+        private void SearchUpdate_KeyUp(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+            {
+                UpdateSearchResults();
+            }
+        }
+
+        private void TaskStack_KeyUp(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+            {
+                GotoTaskpage();
+            }
         }
     }
 }

@@ -3,15 +3,28 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:sys="clr-namespace:System;assembly=mscorlib"
              xmlns:local="clr-namespace:MYTGS"
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800" Width="250" Height="60">
     <UserControl.Background>
-        <ImageBrush ImageSource="Resources/Background.png"/>
+        <ImageBrush ImageSource="Resources/Background2.png"/>
     </UserControl.Background>
     <Grid>
-        <Label x:Name="DescLabel" FontSize="16" FontWeight="Bold" Content="{Binding LabelDesc}" HorizontalAlignment="Left" VerticalAlignment="Top" Foreground="White" Margin="5,0,0,0"/>
-        <Label x:Name="Noticeme" FontSize="16" FontWeight="Bold" HorizontalAlignment="Left" VerticalAlignment="Bottom" Content="{Binding CountDownStr, FallbackValue=00:00:00}" Foreground="White" Margin="5,0,0,0"/>
-        <Label x:Name="RoomLabel" Content="{Binding LabelRoom}" FontSize="16" FontWeight="Bold" VerticalAlignment="Bottom" HorizontalAlignment="Right" Foreground="White" Margin="0,0,5,0"/>
+        <Label x:Name="DescLabel" FontSize="16" FontWeight="Bold" Content="{Binding LabelDesc, FallbackValue=Maths}" HorizontalAlignment="Left" VerticalAlignment="Top" Foreground="White" Margin="15,0,0,0"/>
+        <Label x:Name="Noticeme" FontSize="16" FontWeight="Bold" HorizontalAlignment="Left" VerticalAlignment="Bottom" Content="{Binding CountDownStr, FallbackValue=00:00:00}" Foreground="White" Margin="15,0,0,0"/>
+        <Label x:Name="RoomLabel" Content="{Binding LabelRoom, FallbackValue=CR123}" FontSize="16" FontWeight="Bold" VerticalAlignment="Bottom" HorizontalAlignment="Right" Foreground="White" Margin="0,0,5,0"/>
+        <Label x:Name="DayLabel" FontWeight="Bold" Content="{Binding CurrentTimetableDay, FallbackValue=Day 0}" VerticalAlignment="Bottom" HorizontalAlignment="Left" Foreground="White" Margin="-3,0,0,2" RenderTransformOrigin="0.5,0.5" FontSize="10">
+
+            <Label.Resources>
+                <sys:String x:Key="fixedValue">Day</sys:String>
+            </Label.Resources>
+            <Label.LayoutTransform>
+                <TransformGroup>
+                    <RotateTransform Angle="-90"/>
+                </TransformGroup>
+            </Label.LayoutTransform>
+        </Label>
+        <Grid Panel.ZIndex="10" Margin="17,0,0,0" MouseEnter="MouseHoverHide" Background="#00000000" />
     </Grid>
 </UserControl>

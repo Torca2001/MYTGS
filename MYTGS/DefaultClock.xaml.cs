@@ -20,6 +20,18 @@ namespace MYTGS
     /// </summary>
     public partial class DefaultClock : UserControl
     {
+        public event EventHandler MouseHoveringHide;
+
+        protected virtual void OnMouseHoveringHide()
+        {
+            if (MouseHoveringHide != null) MouseHoveringHide(this, EventArgs.Empty);
+        }
+
+        public void MouseHoverHide(object sender, MouseEventArgs e)
+        {
+            OnMouseHoveringHide();
+        }
+
         public DefaultClock()
         {
             InitializeComponent();

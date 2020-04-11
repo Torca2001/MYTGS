@@ -25,6 +25,28 @@ namespace MYTGS
     public partial class TimetableClock : Window , INotifyPropertyChanged
     {
         private List<TimetablePeriod> schedule { get; set; }
+
+        public DateTime FirstDayDate
+        {
+            get => firstDayDate;
+            set
+            {
+                firstDayDate = value;
+                currentTimetableDay = CalculateTimetableDay(DateTime.Now);
+                if (PropertyChanged != null)
+                {
+                    PropertyChanged(this, new PropertyChangedEventArgs("FirstDayDate"));
+                    PropertyChanged(this, new PropertyChangedEventArgs("CurrentTimetableDay"));
+                }
+            }
+        }
+        private DateTime firstDayDate { get; set; } = new DateTime(2020, 2, 10);
+        public CalendarEvent[] CurrentEarlyFinishes { get; set; }
+
+        public string CurrentTimetableDay { get => "Day " + currentTimetableDay; }
+        private int currentTimetableDay { get; set; }
+        private DateTime LastDay = DateTime.Now;
+
         public bool FadeOnHover = false;
         public bool HideOnFullscreen = false;
         public bool CombineDoubles = false;
@@ -42,11 +64,11 @@ namespace MYTGS
             }
         }
         private bool hideOnFinish { get; set; }
-        private bool Hiding = false;
+        private bool Hiding = true;
         public int Offset { get; set; }
 
         public bool MoveRequest = false;
-        private bool AutoHide = false;
+        private bool CurrentlyHovered = false;
 
         public TimeSpan Countdown
         {
@@ -115,7 +137,15 @@ namespace MYTGS
         {
             Schedule = new List<TimetablePeriod>();
             InitializeComponent();
+            DefClock.MouseHoveringHide += new EventHandler(Grid_MouseEnter);
             this.DataContext = this;
+            currentTimetableDay = CalculateTimetableDay(DateTime.Now);
+            
+            if (PropertyChanged != null)
+            {
+                PropertyChanged(this, new PropertyChangedEventArgs("CurrentTimetableDay"));
+            }
+            
 
             //ContentCtrl.Content = new Button();
             SecTimer.Interval = TimeSpan.FromMilliseconds(250);
@@ -128,25 +158,28 @@ namespace MYTGS
             //Order list by start time of the periods
             Schedule = periods.OrderBy(o => o.Start).ToList();
         }
-
-
-
+        
+        //Update timer
         private void SecTimer_Tick(object sender, EventArgs e)
         {
+            bool ScheduleFinished = false;
+
+            //Check if the day has changed
+            if (LastDay.ToShortDateString() != DateTime.Now.ToShortDateString())
+            {
+                LastDay = DateTime.Now;
+                currentTimetableDay = CalculateTimetableDay(DateTime.Now);
+                PropertyChanged(this, new PropertyChangedEventArgs("CurrentTimetableDay"));
+            }
             
-            int i = 0;
-            for (i = 0;  i <= Schedule.Count; i++)
+            for (int i = 0;  i <= Schedule.Count; i++)
             {
                 if (i == Schedule.Count)
                 {
                     Countdown = TimeSpan.Zero;
                     LabelDesc = "End";
                     LabelRoom = "";
-                    if (!Hiding && HideOnFinish)
-                    {
-                        Hiding = true;
-                        FadeOutWindow();
-                    }
+                    ScheduleFinished = true;
                     break;
                 }
 
@@ -214,31 +247,76 @@ namespace MYTGS
                 }
             }
 
-            if (i != Schedule.Count && Hiding)
+            //Variables for auto hiding check
+            bool IsFullscreenApp = false;
+            bool IsScheduleDone = false;
+                    
+            //Applying User settings -- Run checks
+            if (HideOnFullscreen)
             {
-                Hiding = false;
-                FadeInWindow();
+                IsFullscreenApp = IsForegroundFullScreen(System.Windows.Forms.Screen.FromHandle(new WindowInteropHelper(this).Handle), true);
             }
 
-            if (HideOnFullscreen && IsForegroundFullScreen(System.Windows.Forms.Screen.FromHandle(new WindowInteropHelper(this).Handle), true))
+            if (HideOnFinish)
             {
-                if (!AutoHide)
+                IsScheduleDone = ScheduleFinished;
+            }
+
+
+            bool PlsHide = IsScheduleDone == true || IsFullscreenApp == true;
+            //Check if criteria to hide is true
+            if (Hiding == false && PlsHide == true)
+            {
+                Hiding = true;
+                FadeOutWindow();
+            } //If previouos criteria failed then check if required to reshow
+            else if (Hiding == true && PlsHide == false)
+            {
+                Hiding = false;
+                //Only Fadein if mouse isn't hovering
+                if (CurrentlyHovered == false)
                 {
-                    Console.WriteLine("Hiding for fullscreen");
-                    FadeOutWindow();
-                    AutoHide = true;
+                    FadeInWindow();
                 }
+            }
+        }
+
+        private int CalculateTimetableDay(DateTime LocalDay)
+        {
+            if (LocalDay.DayOfWeek == DayOfWeek.Sunday || LocalDay.DayOfWeek == DayOfWeek.Saturday)
+            {
+                return 0;
+            }
+            if (FirstDayDate.DayOfWeek == DayOfWeek.Monday)
+            {
+                int days = (int)Math.Ceiling(LocalDay.Subtract(FirstDayDate).TotalDays) % 14;
+
+                if (days < 0)
+                    days += 14;
+
+                switch (days)
+                {
+                    case 1:
+                    case 2:
+                    case 3:
+                    case 4:
+                    case 5:
+                        return days;
+                    case 8:
+                    case 9:
+                    case 10:
+                    case 11:
+                    case 12:
+                        return days - 2;
+                    default:
+                        return 0;
+                }
+
             }
             else
             {
-                if (AutoHide)
-                {
-                    FadeInWindow();
-                    Hiding = false;
-                    AutoHide = false;
-                }
+                return 0;
             }
-
         }
 
         private string AutoDesc(TimetablePeriod period)
@@ -247,15 +325,17 @@ namespace MYTGS
         }
 
         //This is required as stuttering will occur if you make the object disappear as it will forget its previous size
-        private void Grid_MouseEnter(object sender, MouseEventArgs e)
+        private void Grid_MouseEnter(object sender, EventArgs e)
         {
             if (!ShowTable && FadeOnHover && !MoveRequest)
             {
                 double Current_Width = ContentGrid.ActualWidth;
                 double Current_Height = ContentGrid.ActualHeight;
                 Point Pos = this.PointToScreen(new Point(Width - Current_Width, Height - Current_Height));
+                Point PosBottom = this.PointToScreen(new Point(Width, Height));
                 DispatcherTimer Checker = new DispatcherTimer();
                 Checker.Interval = TimeSpan.FromMilliseconds(10);
+                CurrentlyHovered = true;
                 FadeOutWindow();
                 //Loop to check if mouse leaves
                 Checker.Tick += (s, eargs) =>
@@ -265,13 +345,19 @@ namespace MYTGS
                     //Check if it is out of the bounds of the previous rectangle
                     if ( ShowTable || mousepoint.X < Pos.X ||
                         mousepoint.Y < Pos.Y ||
-                        mousepoint.X > Pos.X + Current_Width ||
-                        mousepoint.Y > Pos.Y + Current_Height
+                        mousepoint.X > PosBottom.X ||
+                        mousepoint.Y > PosBottom.Y
                     )
                     {
                         //Stop the checking timer and resume visiblity 
                         Checker.Stop();
-                        FadeInWindow();
+                        CurrentlyHovered = false;
+
+                        //Only Fadein if isn't hidden by something else
+                        if (!Hiding)
+                        {
+                            FadeInWindow();
+                        }
                     }
                 };
                 Checker.Start();
@@ -383,11 +469,14 @@ namespace MYTGS
         [DllImport("user32.dll")]
         private static extern IntPtr GetForegroundWindow();
 
+        [DllImport("user32.dll")]
+        static extern int GetWindowText(IntPtr hWnd, StringBuilder text, int count);
+
+
         public static bool IsForegroundFullScreen()
         {
             return IsForegroundFullScreen(null);
         }
-
 
         public static bool IsForegroundFullScreen(System.Windows.Forms.Screen screen, bool SameScreen = false)
         {
@@ -399,19 +488,34 @@ namespace MYTGS
             RECT rect = new RECT();
             IntPtr hWnd = (IntPtr)GetForegroundWindow();
 
-
             GetWindowRect(new HandleRef(null, hWnd), ref rect);
-
-            //in case you want the process name:
-            uint procId = 0;
-            GetWindowThreadProcessId(hWnd, out procId);
-            var proc = System.Diagnostics.Process.GetProcessById((int)procId);
-            //Console.WriteLine(proc.ProcessName);
-            if (proc.ProcessName == "explorer" || proc.ProcessName == "")
+            
+            try
             {
-                return false;
+                //in case you want the process name:
+
+                const int nChars = 256;
+                StringBuilder Buff = new StringBuilder(nChars);
+                string tt = "";
+
+                if (GetWindowText(hWnd, Buff, nChars) > 0)
+                {
+                    tt = Buff.ToString();
+                }
+
+
+                //Console.WriteLine(proc.ProcessName); //Check if its a window process
+                if (tt == "explorer" || tt == "")
+                {
+                    return false;
+                }
+            }
+            catch
+            {
+                //Weird stuff can happen
             }
 
+            
             bool Fullsize = screen.Bounds.Width == (rect.right - rect.left) && screen.Bounds.Height == (rect.bottom - rect.top);
 
             if (SameScreen)

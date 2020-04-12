@@ -32,7 +32,15 @@ namespace MYTGS
 
         public void Initalize()
         {
-            db = new SQLiteConnection(databasePath);
+            try
+            {
+                db = new SQLiteConnection(databasePath);
+            }
+            catch
+            {
+                Console.WriteLine("Warning - Settings is using a memory DB");
+                db = new SQLiteConnection(":memory:");
+            }
             db.CreateTable<SettingsItem>();
         }
 

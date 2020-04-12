@@ -33,10 +33,10 @@
     <ProductName>MYTGS</ProductName>
     <PublisherName>Torca</PublisherName>
     <SuiteName>MYTGS</SuiteName>
-    <MinimumRequiredVersion>0.0.1.10</MinimumRequiredVersion>
+    <MinimumRequiredVersion>0.0.1.11</MinimumRequiredVersion>
     <WebPage>publish.htm</WebPage>
-    <ApplicationRevision>10</ApplicationRevision>
-    <ApplicationVersion>0.0.1.10</ApplicationVersion>
+    <ApplicationRevision>11</ApplicationRevision>
+    <ApplicationVersion>0.0.1.11</ApplicationVersion>
     <UseApplicationTrust>true</UseApplicationTrust>
     <CreateDesktopShortcut>true</CreateDesktopShortcut>
     <PublishWizardCompleted>true</PublishWizardCompleted>

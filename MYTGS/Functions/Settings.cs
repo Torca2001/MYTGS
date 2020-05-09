@@ -91,6 +91,21 @@ namespace MYTGS
         }
         private string calendarUrl { get; set; }
 
+        public string SelectedAudioDevice
+        {
+            get => selectedAudioDevice;
+            set
+            {
+                selectedAudioDevice = value;
+                if (PropertyChanged != null)
+                {
+                    PropertyChanged(this, new PropertyChangedEventArgs("SelectedAudioDevice"));
+                }
+                settings.SaveSettings("SelectedAudioDevice", value);
+            }
+        }
+        private string selectedAudioDevice { get; set; }
+
         public bool FadeOnHover
         {
             get => ClockWindow.FadeOnHover;
@@ -173,6 +188,21 @@ namespace MYTGS
             }
         }
 
+        public int VolumeCtrl
+        {
+            get => volumeCtrl;
+            set
+            {
+                volumeCtrl = value;
+                if (PropertyChanged != null)
+                {
+                    PropertyChanged(this, new PropertyChangedEventArgs("VolumeCtrl"));
+                }
+                settings.SaveSettings("VolumeCtrl", VolumeCtrl.ToString());
+            }
+        }
+        private int volumeCtrl { get; set; }
+
         public bool StartMinimized
         {
             get => startMinimized;
@@ -188,8 +218,50 @@ namespace MYTGS
         }
         private bool startMinimized { get; set; }
 
+        public bool EnableBell
+        {
+            get => enableBell;
+            set
+            {
+                enableBell = value;
+                if (PropertyChanged != null)
+                {
+                    PropertyChanged(this, new PropertyChangedEventArgs("EnableBell"));
+                }
+                settings.SaveSettings("EnableBell", value == true ? "1" : "0");
+            }
+        }
+        private bool enableBell { get; set; }
+
+        public DateTime DomainLastActive
+        {
+            get => domainLastActive;
+            set
+            {
+                domainLastActive = value;
+                if (PropertyChanged != null)
+                    PropertyChanged(this, new PropertyChangedEventArgs("DomainLastActive"));
+                settings.SaveSettings("DomainLastActive", JsonConvert.SerializeObject(value));
+            }
+        }
+
+        private DateTime domainLastActive { get; set; }
+
         private void LoadSettings()
         {
+            switch (settings.GetSettings("EnableBell"))
+            {
+                case "1":
+                    EnableBell = true;
+                    break;
+                case "0":
+                    EnableBell = false;
+                    break;
+                default:
+                    EnableBell = false;
+                    break;
+            }
+
             switch (settings.GetSettings("FadeOnHover"))
             {
                 case "1":
@@ -265,17 +337,46 @@ namespace MYTGS
                 Offset = 0;
             }
 
+            if (settings.GetSettings("VolumeCtrl").Length > 0)
+            {
+
+                VolumeCtrl = int.Parse(settings.GetSettings("VolumeCtrl"));
+            }
+            else
+            {
+                VolumeCtrl = 100;
+            }
+
             try
             {
                 if (settings.GetSettings("FirstDayDate") == "")
                 {
                     FirstDayDate = new DateTime(2020, 2, 10);
                 }
-                FirstDayDate = JsonConvert.DeserializeObject<DateTime>(settings.GetSettings("FirstDayDate"));
+                else
+                {
+                    FirstDayDate = JsonConvert.DeserializeObject<DateTime>(settings.GetSettings("FirstDayDate"));
+                }
             }
             catch
             {
                 FirstDayDate = new DateTime(2020, 2, 10);
+            }
+
+            try
+            {
+                if (settings.GetSettings("DomainLastActive") == "")
+                {
+                    DomainLastActive = new DateTime(2020, 2, 10);
+                }
+                else
+                {
+                    DomainLastActive = JsonConvert.DeserializeObject<DateTime>(settings.GetSettings("DomainLastActive"));
+                }
+            }
+            catch
+            {
+                DomainLastActive = new DateTime(2020, 2, 10);
             }
 
             try
@@ -301,6 +402,10 @@ namespace MYTGS
                     lastEPR.Day = 1;
                 }
             }
+
+            Guid tp = Guid.Empty;
+            Guid.TryParse(settings.GetSettings("SelectedAudioDevice"), out tp);
+            SelectedAudioDevice = tp.ToString();
 
             if (settings.GetSettings("CalendarUrl").Length > 0)
             {

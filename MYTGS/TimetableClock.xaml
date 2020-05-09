@@ -5,8 +5,10 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:MYTGS"
         mc:Ignorable="d"
-        Title="TimetableClock" ShowInTaskbar="False" Topmost="True" WindowStartupLocation="CenterScreen" ResizeMode="NoResize" WindowStyle="None" AllowsTransparency="True" Width="400" Height="400" Loaded="Window_Loaded" 
-        Icon="Resources/MYTGSIcon.ico">
+        Title="TimetableClock" ShowInTaskbar="False" Topmost="True" WindowStartupLocation="CenterScreen" ResizeMode="NoResize" WindowStyle="None" AllowsTransparency="True" Loaded="Window_Loaded" 
+        Icon="Resources/MYTGSIcon.ico"
+        SizeToContent="WidthAndHeight"
+        >
 
     <Grid x:Name="ContentGrid" VerticalAlignment="Bottom" HorizontalAlignment="Right" MouseDown="ContentGrid_MouseDown" Opacity="0">
         <ContentControl x:Name="ContentCtrl">
@@ -24,7 +26,7 @@
                 </Style>
             </local:DefaultClock.Style>
         </local:DefaultClock>
-        <Grid>
+        <Grid x:Name="TableGrid">
             <Grid.Style>
                 <Style TargetType="{x:Type Grid}">
                     <Setter Property="Visibility" Value="Collapsed"/>

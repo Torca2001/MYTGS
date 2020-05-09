@@ -206,7 +206,7 @@ namespace Firefly
             {
                 WebClient web = new WebClient();
                 //Extra theme query set to minimal - Removes all associated css formating and safes bandwidth
-                return web.DownloadString(SchoolUrl + @"/dashboard?theme=minimal&ffauth_device_id=" + DeviceID + "&ffauth_secret=" + Token);
+                return web.DownloadString(SchoolUrl + @"/dashboard?ffauth_device_id=" + DeviceID + "&ffauth_secret=" + Token);
             }
             catch (WebException e)
             {
@@ -346,7 +346,7 @@ namespace Firefly
 
         public FullTask[] GetAllTasksByIds(int[] Ids)
         {
-            if (!loggedIn)
+            if (!loggedIn || Ids == null)
             {
                 return null;
             }
@@ -614,7 +614,7 @@ namespace Firefly
                         int itt = 0;
 
                         //Iterate and find the highest time
-                        foreach(var item in Tasks[i].recipientsResponses[0].responses.OrderBy(pv => pv.sentTimestamp))
+                        foreach (var item in Tasks[i].recipientsResponses[0].responses.OrderBy(pv => pv.sentTimestamp))
                         {
                             if ( item.mark != 0 && (item.outOf != 0 || Tasks[i].totalMarkOutOf != 0 || item.taskAssessmentDetails.assessmentMarkMax != 0))
                             {
@@ -645,7 +645,7 @@ namespace Firefly
                         Tasks[i].recipientsResponses[0].responses = nodup.Values.ToArray();
 
                     }
-                    catch
+                    catch(Exception e)
                     {
                         //do nothing
                     }

@@ -21,6 +21,7 @@ using System.IO.Pipes;
 using System.Collections.ObjectModel;
 using System.Threading;
 using SQLite;
+using NAudio.Wave;
 
 namespace MYTGS
 {
@@ -36,6 +37,7 @@ namespace MYTGS
         DispatcherTimer TenTimer = new DispatcherTimer();
         DispatcherTimer UpdateTimer = new DispatcherTimer();
         public ObservableCollection<TimetablePeriod> EPRChanges { get; set; } = new ObservableCollection<TimetablePeriod>();
+        public List<DirectSoundDeviceInfo> AudioDevicesList { get; set; } = new List<DirectSoundDeviceInfo>();
         TimetableClock ClockWindow = new TimetableClock();
         DateTime LastDayCheck = DateTime.Now;
         DateTime PlannerDate = DateTime.Now;
@@ -43,6 +45,7 @@ namespace MYTGS
         int EPRWait = 0;
         bool PlannerCurrentDay = true;
         private bool IsFirstTime = false;
+        DirectSoundOut outputAudioDevice = new DirectSoundOut();
 
 
         public List<TimetablePeriod> ClockSchedule { get => ClockWindow.Schedule; }
@@ -54,6 +57,7 @@ namespace MYTGS
         bool safeclose = false;
         bool offlineMode = false;
         const string SchoolDBFile = "Trinity";
+        
 
         //Get path to database
         SQLiteConnection dbSchool = null;
@@ -61,7 +65,7 @@ namespace MYTGS
         private string TasksPath = Environment.ExpandEnvironmentVariables((string)Properties.Settings.Default["AppPath"]) + "Tasks\\";
 
         public MainWindow()
-        {
+        { 
             if (!Directory.Exists(Environment.ExpandEnvironmentVariables((string)Properties.Settings.Default["AppPath"])))
             {
                 Directory.CreateDirectory(Environment.ExpandEnvironmentVariables((string)Properties.Settings.Default["AppPath"]));
@@ -99,12 +103,34 @@ namespace MYTGS
             InitializeCacheDB(dbSchool);
 
 
+            //Update audio drivers list
+            UpdateAudioDeviceList();
+
+
             //Loads data about last time DB was updated
             LoadCache(dbSchool);
             LoadEventInfo(dbSchool);
             LoadSettings();
-            
+
+            try
+            {
+                outputAudioDevice?.Dispose();
+                outputAudioDevice = new DirectSoundOut(new Guid(SelectedAudioDevice));
+            }
+            catch
+            {
+                //Link to default audio device
+                outputAudioDevice = new DirectSoundOut();
+            }
+
+            //Check to see if connected to domain or not
+            if (ConnectedToDomain())
+            {
+                DomainLastActive = DateTime.UtcNow;
+            }
+
             FF.OnLogin += FF_OnLogin;
+            ClockWindow.BellTrigger += ClockWindow_BellTrigger;
             // 10 minutes in milliseconds
             TenTimer.Interval = TimeSpan.FromMinutes(10);
             TenTimer.Tick += TenTimer_Tick;
@@ -112,6 +138,15 @@ namespace MYTGS
             UpdateTimer.Interval = TimeSpan.FromHours(6);
             UpdateTimer.Tick += UpdateTimer_Tick;
             InitializeComponent(); //Initialize WPF Window and objects
+
+            for (int i = 0; i < AudioDevicesList.Count; i++)
+            {
+                if (AudioDevicesList[i].Guid.ToString() == SelectedAudioDevice)
+                {
+                    BellAudioDeviceComboBox.SelectedIndex = i;
+                    break;
+                }
+            }
 
             eprbrowser.NavigateToString("<p>EPR Not Loaded </p>");
 
@@ -122,10 +157,11 @@ namespace MYTGS
             IsFirstTime = Firsttime;
 
             earlyfinishcheck.IsChecked = IsTodayEarlyFinish(dbSchool);
-
-            //test.Content = JsonConvert.SerializeObject(DateTime.Now.ToUniversalTime());
+            
             ClockWindow.Background = new SolidColorBrush(Color.FromArgb(0, 255, 255, 255));
             ClockWindow.Show();
+
+            //Position clock
             ClockWindow.Left = System.Windows.SystemParameters.WorkArea.Width - ClockWindow.Width;
             ClockWindow.Top = System.Windows.SystemParameters.WorkArea.Height - ClockWindow.Height;
             
@@ -162,7 +198,7 @@ namespace MYTGS
             nIcon.DoubleClick += HomeMenu_Click;
             nIcon.MouseDown += NIcon_MouseDown;
             nIcon.Visible = true;
-            
+
 
             FF.OnSiteConnect += SiteConnected;
             FF.SchoolCheckAsync("MYTGS");
@@ -182,12 +218,68 @@ namespace MYTGS
             }
             StartupCheckBox.IsChecked = IsApplicationInStartup();
             StartupCheckBox.Checked += StartupCheckBox_Checked;
+            
 
             UpdateCalendar(dbSchool);
             CheckForEarlyFinishes(dbSchool);
             TwoWeekTimetable = LocateTwoWeeks(FirstDayDate);
             GenerateTwoWeekTimetable();
             UpdateSearchResults();
+        }
+
+        //test bell button
+        private void Button_Click_6(object sender, RoutedEventArgs e)
+        {
+            float vol = VolumeCtrl / 100.0f;
+
+            byte[] bytes = Convert.FromBase64String(Bellwave);
+            using (var wave = new WaveChannel32(new Mp3FileReader(new MemoryStream(bytes)), vol, 0f))
+            {
+                outputAudioDevice.Init(wave);
+                outputAudioDevice.Play();
+
+                Thread.Sleep((int)wave.TotalTime.TotalMilliseconds);
+            }
+        }
+
+        private bool ConnectedToDomain()
+        {
+            try
+            {
+                System.DirectoryServices.ActiveDirectory.Domain.GetComputerDomain();
+                return true;
+            }
+            catch
+            {
+                //Do nothing
+            }
+
+            return false;
+        }
+
+        private void ClockWindow_BellTrigger(object sender, EventArgs e)
+        {
+            //Check to see if connected to domain or not
+            if (ConnectedToDomain())
+            {
+                DomainLastActive = DateTime.UtcNow;
+            }
+
+
+            //Only run bell if domain wasn't connected to in the last 10 minutes
+            if (EnableBell && (DateTime.UtcNow-DomainLastActive).TotalMinutes >= 10)
+            {
+                float vol = VolumeCtrl / 100.0f;
+
+                byte[] bytes = Convert.FromBase64String(Bellwave);
+                using (var wave = new WaveChannel32(new Mp3FileReader(new MemoryStream(bytes)), vol, 0f))
+                {
+                    outputAudioDevice.Init(wave);
+                    outputAudioDevice.Play();
+
+                    Thread.Sleep((int)wave.TotalTime.TotalMilliseconds);
+                }
+            }
         }
 
         private void SiteConnected(object sender, EventArgs e)
@@ -318,40 +410,17 @@ namespace MYTGS
             }
         }
 
-        //private void LoadCachedTasks()
-        //{
-        //    logger.Info("Loading Local tasks");
-        //    if (Directory.Exists(TasksPath))
-        //    {
-        //        string[] TaskIDs = Directory.GetDirectories(TasksPath);
-        //        TaskIDs.Reverse();
-        //        int loadedtasks = 0;
-        //        foreach (string TaskID in TaskIDs)
-        //        {
-        //            try
-        //            {
-        //                if (File.Exists(TaskID + "\\Task.json"))
-        //                {
-        //                    Firefly.FullTask tmp = JsonConvert.DeserializeObject<Firefly.FullTask>(File.ReadAllText(TaskID + "\\Task.json"));
-        //                    Tasks.Add(tmp.id, tmp);
-        //                    loadedtasks += 1;
-        //                }
-        //            }
-        //            catch
-        //            {
-        //                logger.Warn("Failed to load task - " + TaskID.Substring(TaskID.LastIndexOf("\\")));
-        //            }
-        //        }
-        //        logger.Info("Successfully loaded " + loadedtasks + " tasks");
-        //    }
-        //    Tasks = Tasks.OrderBy(p => p.Value.dueDate).Reverse().ToDictionary(k => k.Key, k => k.Value);
-        //}
-
         DateTime LastTenTimerCheck = DateTime.Now;
         private void TenTimer_Tick(object sender, EventArgs e)
         {
             //Check for changes
             //UpdateTasks(TasksPath);
+
+            //Check to see if connected to domain or not
+            if (ConnectedToDomain())
+            {
+                DomainLastActive = DateTime.UtcNow;
+            }
 
             if (DateTime.Now.ToShortDateString() != LastTenTimerCheck.ToShortDateString())
             {
@@ -367,6 +436,7 @@ namespace MYTGS
 
             if (offlineMode == false)
             {
+
                 UpdateCalendar(dbSchool);
                 CheckForEarlyFinishes(dbSchool);
                 
@@ -758,6 +828,8 @@ namespace MYTGS
                 Hide();
                 return;
             }
+
+            outputAudioDevice?.Dispose();
             dbSchool.Close();
             settings.Close();
             ClockWindow?.Close();
@@ -967,6 +1039,7 @@ namespace MYTGS
 
         private void Hyperlink_RequestNavigate(object sender, System.Windows.Navigation.RequestNavigateEventArgs e)
         {
+            //Sanitize request, only want web requests to be processed
             if (e.Uri.AbsoluteUri.StartsWith("http://") || e.Uri.AbsoluteUri.StartsWith("https://"))
             {
                 System.Diagnostics.Process.Start(e.Uri.AbsoluteUri);
@@ -1084,6 +1157,53 @@ namespace MYTGS
             if (e.Key == Key.Enter)
             {
                 GotoTaskpage();
+            }
+        }
+
+        private void Button_Click_7(object sender, RoutedEventArgs e)
+        {
+            UpdateAudioDeviceList();
+        }
+
+        private void UpdateAudioDeviceList()
+        {
+            AudioDevicesList.Clear();
+            foreach(var device in DirectSoundOut.Devices)
+            {
+                if (device.Guid.ToString() == "00000000-0000-0000-0000-000000000000")
+                {
+                    var temp = device;
+                    temp.Description = "Default Audio Device";
+                    AudioDevicesList.Add(temp);
+                }
+                else
+                {
+                    AudioDevicesList.Add(device);
+                }
+            }
+
+            if (PropertyChanged != null)
+                PropertyChanged(this, new PropertyChangedEventArgs("AudioDevicesList"));
+
+
+
+        }
+
+        private void BellAudioDeviceComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (IsLoaded == false)
+                return;
+            
+            SelectedAudioDevice = ((DirectSoundDeviceInfo)((ComboBox)sender).SelectedItem).Guid.ToString();
+            try
+            {
+                outputAudioDevice?.Dispose();
+                outputAudioDevice = new DirectSoundOut(new Guid(SelectedAudioDevice));
+            }
+            catch
+            {
+                //Link to default audio device
+                outputAudioDevice = new DirectSoundOut();
             }
         }
     }

@@ -46,6 +46,10 @@ namespace MYTGS
         public string CurrentTimetableDay { get => "Day " + currentTimetableDay; }
         private int currentTimetableDay { get; set; }
         private DateTime LastDay = DateTime.Now;
+        public event EventHandler BellTrigger;
+        private bool BellFlag = false;
+        private int Lastperiod = 20; //Higher than possible period to prevent startup triggering bell
+        private bool LastPeriodGoto = false;
 
         public bool FadeOnHover = false;
         public bool HideOnFullscreen = false;
@@ -108,9 +112,38 @@ namespace MYTGS
 
         public bool ShowTable { get => showTable; set
             {
+                if (showTable != value && value == false)
+                {
+                    Top = Top + 250;
+                }
+                else if (showTable != value && value == true)
+                {
+                    Top = Top - 250;
+                }
                 showTable = value;
                 if (PropertyChanged != null)
                     PropertyChanged(this, new PropertyChangedEventArgs("ShowTable"));
+            }
+        }
+
+        //Event to fire when a period changed for bell
+        protected virtual void OnBell(EventArgs e)
+        {
+            EventHandler handler = BellTrigger;
+            handler?.BeginInvoke(this, e, EndAsyncEvent, null);
+        }
+
+        protected virtual void EndAsyncEvent(IAsyncResult iar)
+        {
+            var ar = (System.Runtime.Remoting.Messaging.AsyncResult)iar;
+            var invokedMethod = (EventHandler)ar.AsyncDelegate;
+            try
+            {
+                invokedMethod.EndInvoke(iar);
+            }
+            catch
+            {
+                //do nothing
             }
         }
 
@@ -163,6 +196,7 @@ namespace MYTGS
         private void SecTimer_Tick(object sender, EventArgs e)
         {
             bool ScheduleFinished = false;
+            bool IsGotoPeriod = false;
 
             //Check if the day has changed
             if (LastDay.ToShortDateString() != DateTime.Now.ToShortDateString())
@@ -171,25 +205,28 @@ namespace MYTGS
                 currentTimetableDay = CalculateTimetableDay(DateTime.Now);
                 PropertyChanged(this, new PropertyChangedEventArgs("CurrentTimetableDay"));
             }
-            
-            for (int i = 0;  i <= Schedule.Count; i++)
+
+            //Time to compare against
+            DateTime RN = DateTime.Now.AddSeconds(Offset);
+            int i = 0;
+            for (i = 0;  i <= Schedule.Count; i++)
             {
                 if (i == Schedule.Count)
                 {
+                    IsGotoPeriod = false;
                     Countdown = TimeSpan.Zero;
                     LabelDesc = "End";
                     LabelRoom = "";
                     ScheduleFinished = true;
                     break;
                 }
-
-
-                DateTime RN = DateTime.Now.AddSeconds(Offset);
                 if (Schedule[i].GotoPeriod)
                 {
+                    IsGotoPeriod = false;
                     DateTime GotoTime = Schedule[i].Start.AddMinutes(-5);
                     if (Timetablehandler.CompareInBetween(GotoTime, Schedule[i].Start, RN) && !(i!=0 && Schedule[i-1].Classcode == Schedule[i].Classcode))
                     {
+                        IsGotoPeriod = true;
                         Countdown = Schedule[i].Start - RN;
                         LabelDesc = "Go to " + AutoDesc(Schedule[i]);
                         LabelRoom = Schedule[i].Roomcode;
@@ -226,6 +263,7 @@ namespace MYTGS
                 }
                 else if (Timetablehandler.CompareInBetween(Schedule[i].Start, Schedule[i].End, RN))
                 {
+                    IsGotoPeriod = false;
                     if (CombineDoubles && i + 1 < Schedule.Count && Schedule[i].Classcode == Schedule[i + 1].Classcode)
                     {
                         Countdown = Schedule[i + 1].End - RN;
@@ -240,12 +278,41 @@ namespace MYTGS
                 }
                 else if (Schedule[i].Start > RN)
                 {
+                    IsGotoPeriod = false;
                     Countdown = Schedule[i].Start - RN;
                     LabelDesc = "Next " + AutoDesc(Schedule[i]);
                     LabelRoom = Schedule[i].Roomcode;
                     break;
                 }
             }
+
+            bool Belltrigger = false;
+            if (i < Schedule.Count)
+            {
+                if ((Schedule[i].Start - RN).TotalMilliseconds < 1000 && (Schedule[i].Start - RN).TotalMilliseconds > 0)
+                {
+                    IsGotoPeriod = true;
+                    Belltrigger = true;
+                }
+                else if (Schedule[i].End > Schedule[i].Start && (Schedule[i].End - RN).TotalMilliseconds < 1000 && (Schedule[i].End - RN).TotalMilliseconds > 0)
+                {
+                    Belltrigger = true;
+                }
+            }
+
+
+            //Bell check
+            if (Belltrigger)
+            {
+                BellFlag = true;
+            }
+            else if (BellFlag == true && (IsGotoPeriod != LastPeriodGoto || i > Lastperiod))
+            {
+                BellFlag = false;
+                OnBell(new EventArgs());
+            }
+            Lastperiod = i;
+            LastPeriodGoto = IsGotoPeriod;
 
             //Variables for auto hiding check
             bool IsFullscreenApp = false;

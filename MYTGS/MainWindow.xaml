@@ -387,7 +387,7 @@
                     </Grid.ColumnDefinitions>
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <StackPanel>
-                            <Expander Grid.ColumnSpan="3" Header="Application" Grid.Row="0" IsExpanded="True" Background="{x:Null}" BorderBrush="{x:Null}" Foreground="#FF0481FF">
+                            <Expander Header="Application" Grid.Row="0" IsExpanded="True" Background="{x:Null}" BorderBrush="{x:Null}" Foreground="#FF0481FF">
                                 <Grid Background="#FFE5E5E5">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="150px"/>
@@ -414,7 +414,7 @@
                                     <CheckBox x:Name="earlyfinishcheck" Grid.Row="3" Grid.Column="1" Margin="50,0,0,0" VerticalAlignment="Center" Click="L_Click" />
                                 </Grid>
                             </Expander>
-                            <Expander Grid.ColumnSpan="3" Header="Clock" Grid.Row="1" Foreground="#FF0481FF" Background="{x:Null}" BorderBrush="{x:Null}">
+                            <Expander Header="Clock" Foreground="#FF0481FF" Background="{x:Null}" BorderBrush="{x:Null}">
                                 <Grid Background="#FFE5E5E5">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="150px"/>
@@ -442,6 +442,40 @@
 
                                     <Label Content="Combine Doubles" ToolTip="Clock will check if there are doubles adding the total time together to display" Grid.Row="4" FontSize="16" HorizontalContentAlignment="Right" VerticalAlignment="Center"/>
                                     <CheckBox Grid.Row="4" Grid.Column="1" Margin="50,0,0,0" VerticalAlignment="Center" IsChecked="{Binding CombineDoubles, Mode=TwoWay}" HorizontalAlignment="Left" />
+
+                                </Grid>
+                            </Expander>
+                            <Expander Header="Bell" Grid.Row="0" IsExpanded="False" Background="{x:Null}" BorderBrush="{x:Null}" Foreground="#FF0481FF">
+                                <Grid Background="#FFE5E5E5">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="150px"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="50px"/>
+                                        <RowDefinition Height="50px"/>
+                                        <RowDefinition Height="50px"/>
+                                        <RowDefinition Height="50px"/>
+                                    </Grid.RowDefinitions>
+
+
+                                    <Button Grid.Column="2" Width="100" Content="Test bell" Click="Button_Click_6" IsEnabled="False" Visibility="Collapsed"/>
+                                    
+                                    <Label Content="Bell Enabled" ToolTip="Sets a registry key to startup program" Grid.Row="0" FontSize="16" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                    <CheckBox x:Name="BellCheckBox" Grid.Column="1" Grid.Row="0" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="50,0,0,0" IsChecked="{Binding EnableBell}" />
+
+                                    <Label Content="Volume" ToolTip="Really... Its the volume for the bell duh" Grid.Row="1" FontSize="16" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                    <Slider x:Name="BellVolumeSlider" Grid.Row="1" Grid.Column="1" VerticalAlignment="Center" Margin="0" Maximum="100" LargeChange="10" SmallChange="1" AutoToolTipPlacement="TopLeft" MaxWidth="400" HorizontalAlignment="Left" Width="400" Value="{Binding VolumeCtrl}"/>
+
+
+                                    <Label Content="Audio Device" ToolTip="Audio Output Device" Grid.Row="2" FontSize="16" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                    <ComboBox x:Name="BellAudioDeviceComboBox" Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left" Width="200" Height="30" FontSize="16" SelectedIndex="0" ItemsSource="{Binding AudioDevicesList}" DisplayMemberPath="Description" SelectionChanged="BellAudioDeviceComboBox_SelectionChanged" >
+                                        
+                                    </ComboBox>
+                                    <Button ToolTip="Refresh Devices" Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left" Width="20" Margin="205,0,0,0" Height="20" Click="Button_Click_7">
+                                        <fa:SvgAwesome Icon="Solid_RedoAlt" Foreground="#FF0481FF"/>
+                                    </Button>
+                                    
                                 </Grid>
                             </Expander>
                         </StackPanel>

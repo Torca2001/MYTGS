@@ -205,13 +205,20 @@ namespace MYTGS
                     Match match = reg.Match(item.guid);
                     if (match.Success)
                     {
-                        table[Convert.ToInt16(match.Groups[3].Value)] = new TimetablePeriod(item.start.ToLocalTime(), item.end.ToLocalTime(), item.subject, match.Groups[1].ToString(), item.location, true, Convert.ToInt16(match.Groups[3].Value), item.Teacher);
+                        table[Convert.ToInt16(match.Groups[3].Value)] = new TimetablePeriod(item.start.ToLocalTime(), item.end.ToLocalTime(), item.subject, match.Groups[1].ToString(), item.location, Convert.ToInt16(match.Groups[3].Value) != 0, Convert.ToInt16(match.Groups[3].Value), item.Teacher);
+
                     }
                 }
                 catch
                 {
                     //Regex error
                 }
+            }
+
+            if (table[0].Start != DateTime.MinValue)
+            {
+                //Override first period to start at 8:15 since for some reason it always starts at 8:30???
+                table[0].Start = DateTimespan(table[0].Start, DefaultPeriods[0, 0].Start);
             }
 
             return table;

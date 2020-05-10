@@ -7,7 +7,7 @@
         mc:Ignorable="d"
         Title="TimetableClock" ShowInTaskbar="False" Topmost="True" WindowStartupLocation="CenterScreen" ResizeMode="NoResize" WindowStyle="None" AllowsTransparency="True" Loaded="Window_Loaded" 
         Icon="Resources/MYTGSIcon.ico"
-        SizeToContent="WidthAndHeight"
+        SizeToContent="WidthAndHeight" LocationChanged="Window_LocationChanged"
         >
 
     <Grid x:Name="ContentGrid" VerticalAlignment="Bottom" HorizontalAlignment="Right" MouseDown="ContentGrid_MouseDown" Opacity="0">
@@ -26,48 +26,5 @@
                 </Style>
             </local:DefaultClock.Style>
         </local:DefaultClock>
-        <Grid x:Name="TableGrid">
-            <Grid.Style>
-                <Style TargetType="{x:Type Grid}">
-                    <Setter Property="Visibility" Value="Collapsed"/>
-                    <Style.Triggers>
-                        <DataTrigger Binding="{Binding ElementName=ContentCtrl, Path=Content}" Value="{x:Null}">
-                            <Setter Property="Visibility" Value="Visible"/>
-                        </DataTrigger>
-                    </Style.Triggers>
-                </Style>
-            </Grid.Style>
-            <Grid Height="250" Margin="0,0,0,60">
-                <Grid.Background>
-                    <ImageBrush ImageSource="Resources/Backgroundx250.png"/>
-                </Grid.Background>
-                <Grid.Style>
-                    <Style TargetType="{x:Type Grid}">
-                        <Setter Property="Visibility" Value="Collapsed"/>
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding ShowTable}" Value="True">
-                                <Setter Property="Visibility" Value="Visible"/>
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </Grid.Style>
-                <ItemsControl ItemsSource="{Binding Schedule}" Focusable="False" Margin="4,2,10,4">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Grid Height="50" HorizontalAlignment="Stretch" ToolTip="{Binding Path=Tooltip}" Background="#00000000">
-                                <Label Content="{Binding Path=Classcode}" HorizontalAlignment="Left" Foreground="White" FontSize="14"/>
-                                <Label Content="{Binding Path=Roomcode}" HorizontalAlignment="Right" Foreground="White" FontSize="14"/>
-                            </Grid>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                    <ItemsControl.ItemContainerStyle>
-                        <Style TargetType="{x:Type ContentPresenter}">
-                            <Setter Property="Margin" Value="0"/>
-                            <Setter Property="Height" Value="27"/>
-                        </Style>
-                    </ItemsControl.ItemContainerStyle>
-                </ItemsControl>
-            </Grid>
-        </Grid>
     </Grid>
 </Window>

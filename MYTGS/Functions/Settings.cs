@@ -57,6 +57,28 @@ namespace MYTGS
             }
         }
 
+        public bool GetBoolSettings(string name)
+        {
+            switch (GetSettings(name))
+            {
+                case "1":
+                    return true;
+                case "0":
+                    return false;
+                default:
+                    return false;
+            }
+        }
+
+        public int GetIntSettings(string name, int fallback = 0)
+        {
+            int tempint = fallback;
+            if (int.TryParse(GetSettings(name), out tempint) == false){
+                return fallback;
+            }
+            return tempint;
+        }
+
     }
 
     struct SettingsItem
@@ -105,6 +127,81 @@ namespace MYTGS
             }
         }
         private string selectedAudioDevice { get; set; }
+
+        public string XOffset
+        {
+            get => xOffset;
+            set
+            {
+                xOffset = value;
+                if (PropertyChanged != null)
+                {
+                    PropertyChanged(this, new PropertyChangedEventArgs("XOffset"));
+                }
+                settings.SaveSettings("XOffset", value);
+            }
+        }
+        private string xOffset { get; set; }
+
+        public string YOffset
+        {
+            get => yOffset;
+            set
+            {
+                yOffset = value;
+                if (PropertyChanged != null)
+                {
+                    PropertyChanged(this, new PropertyChangedEventArgs("YOffset"));
+                }
+                settings.SaveSettings("YOffset", value);
+            }
+        }
+        private string yOffset { get; set; }
+
+        public bool TablePreference
+        {
+            get => ClockWindow.TablePositionPreference;
+            set
+            {
+                ClockWindow.TablePositionPreference = value;
+                if (PropertyChanged != null)
+                {
+                    PropertyChanged(this, new PropertyChangedEventArgs("TablePreference"));
+                }
+                settings.SaveSettings("TablePreference", value == true ? "1" : "0");
+            }
+        }
+        
+        public int ScreenPreference
+        {
+            get => screenPreference;
+            set
+            {
+                screenPreference = value;
+                if (PropertyChanged != null)
+                {
+                    PropertyChanged(this, new PropertyChangedEventArgs("ScreenPreference"));
+                }
+                settings.SaveSettings("ScreenPreference", value.ToString());
+            }
+        }
+        private int screenPreference { get; set; }
+
+
+        public int ClockPlacementMode
+        {
+            get => clockPlacementMode;
+            set
+            {
+                clockPlacementMode = value;
+                if (PropertyChanged != null)
+                {
+                    PropertyChanged(this, new PropertyChangedEventArgs("ClockPlacementMode"));
+                }
+                settings.SaveSettings("ClockPlacementMode", value.ToString());
+            }
+        }
+        private int clockPlacementMode { get; set; }
 
         public bool FadeOnHover
         {
@@ -184,7 +281,7 @@ namespace MYTGS
                 {
                     PropertyChanged(this, new PropertyChangedEventArgs("Offset"));
                 }
-                settings.SaveSettings("Offset", Offset.ToString());
+                settings.SaveSettings("Offset", value.ToString());
             }
         }
 
@@ -198,7 +295,7 @@ namespace MYTGS
                 {
                     PropertyChanged(this, new PropertyChangedEventArgs("VolumeCtrl"));
                 }
-                settings.SaveSettings("VolumeCtrl", VolumeCtrl.ToString());
+                settings.SaveSettings("VolumeCtrl", value.ToString());
             }
         }
         private int volumeCtrl { get; set; }
@@ -249,103 +346,15 @@ namespace MYTGS
 
         private void LoadSettings()
         {
-            switch (settings.GetSettings("EnableBell"))
-            {
-                case "1":
-                    EnableBell = true;
-                    break;
-                case "0":
-                    EnableBell = false;
-                    break;
-                default:
-                    EnableBell = false;
-                    break;
-            }
-
-            switch (settings.GetSettings("FadeOnHover"))
-            {
-                case "1":
-                    FadeOnHover = true;
-                    break;
-                case "0":
-                    FadeOnHover = false;
-                    break;
-                default:
-                    FadeOnHover = true;
-                    break;
-            }
-
-            switch (settings.GetSettings("HideOnFinish"))
-            {
-                case "1":
-                    HideOnFinish = true;
-                    break;
-                case "0":
-                    HideOnFinish = false;
-                    break;
-                default:
-                    HideOnFinish = true;
-                    break;
-            }
-
-            switch (settings.GetSettings("StartMinimized"))
-            {
-                case "1":
-                    StartMinimized = true;
-                    break;
-                case "0":
-                    StartMinimized = false;
-                    break;
-                default:
-                    StartMinimized = true;
-                    break;
-            }
-
-            switch (settings.GetSettings("CombineDoubles"))
-            {
-                case "1":
-                    CombineDoubles = true;
-                    break;
-                case "0":
-                    CombineDoubles = false;
-                    break;
-                default:
-                    CombineDoubles = true;
-                    break;
-            }
-
-            switch (settings.GetSettings("HideOnFullscreen"))
-            {
-                case "1":
-                    HideOnFullscreen = true;
-                    break;
-                case "0":
-                    HideOnFullscreen = false;
-                    break;
-                default:
-                    HideOnFullscreen = true;
-                    break;
-            }
-
-            if (settings.GetSettings("Offset").Length > 0)
-            {
-
-                Offset = int.Parse(settings.GetSettings("Offset"));
-            }
-            else
-            {
-                Offset = 0;
-            }
-
-            if (settings.GetSettings("VolumeCtrl").Length > 0)
-            {
-
-                VolumeCtrl = int.Parse(settings.GetSettings("VolumeCtrl"));
-            }
-            else
-            {
-                VolumeCtrl = 100;
-            }
+            EnableBell = settings.GetBoolSettings("EnableBell");
+            TablePreference = settings.GetBoolSettings("TablePreference");
+            FadeOnHover = settings.GetBoolSettings("FadeOnHover");
+            HideOnFinish = settings.GetBoolSettings("HideOnFinish");
+            StartMinimized = settings.GetBoolSettings("StartMinimized");
+            CombineDoubles = settings.GetBoolSettings("CombineDoubles");
+            HideOnFullscreen = settings.GetBoolSettings("HideOnFullscreen");
+            Offset = settings.GetIntSettings("Offset");
+            VolumeCtrl = settings.GetIntSettings("VolumeCtrl", 100);
 
             try
             {
@@ -406,6 +415,23 @@ namespace MYTGS
             Guid tp = Guid.Empty;
             Guid.TryParse(settings.GetSettings("SelectedAudioDevice"), out tp);
             SelectedAudioDevice = tp.ToString();
+
+
+            XOffset = settings.GetSettings("XOffset");
+            YOffset = settings.GetSettings("YOffset");
+
+            ScreenPreference = settings.GetIntSettings("ScreenPreference",0);
+            tmpScreen = ScreenPreference;
+            int tmpint = settings.GetIntSettings("ClockPlacementMode");
+            if (tmpint >= 0 && tmpint <= 5)
+            {
+                ClockPlacementMode = tmpint;
+            }
+            else
+            {
+                ClockPlacementMode = 0;
+            }
+
 
             if (settings.GetSettings("CalendarUrl").Length > 0)
             {

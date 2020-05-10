@@ -1,0 +1,30 @@
+﻿<Window x:Class="MYTGS.TableWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:MYTGS"
+        mc:Ignorable="d"
+        Title="TableWindow" Height="250" Width="250" AllowsTransparency="True" WindowStyle="None" Background="Transparent" Loaded="Window_Loaded" ResizeMode="NoResize" ShowInTaskbar="False" Topmost="True">
+    <Grid x:Name="PrimaryGrid" Width="250" MouseDown="Grid_MouseDown">
+        <Grid.Background>
+            <ImageBrush ImageSource="Resources/Backgroundx250.png"/>
+        </Grid.Background>
+        <ItemsControl ItemsSource="{Binding Schedule}" Focusable="False" Margin="4,2,10,4">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Grid Height="50" HorizontalAlignment="Stretch" ToolTip="{Binding Path=Tooltip}" Background="#00000000">
+                        <Label Content="{Binding Path=Classcode}" HorizontalAlignment="Left" Foreground="White" FontSize="14"/>
+                        <Label Content="{Binding Path=Roomcode}" HorizontalAlignment="Right" Foreground="White" FontSize="14"/>
+                    </Grid>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+            <ItemsControl.ItemContainerStyle>
+                <Style TargetType="{x:Type ContentPresenter}">
+                    <Setter Property="Margin" Value="0"/>
+                    <Setter Property="Height" Value="27"/>
+                </Style>
+            </ItemsControl.ItemContainerStyle>
+        </ItemsControl>
+    </Grid>
+</Window>

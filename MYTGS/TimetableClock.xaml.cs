@@ -68,6 +68,15 @@ namespace MYTGS
             }
         }
         private bool hideOnFinish { get; set; }
+        public bool TablePositionPreference
+        {
+            get => tablePositionPreference;
+            set
+            {
+                tablePositionPreference = value;
+            }
+        }
+        private bool tablePositionPreference { get; set; }
         private bool Hiding = true;
         public int Offset { get; set; }
 
@@ -112,19 +121,59 @@ namespace MYTGS
 
         public bool ShowTable { get => showTable; set
             {
-                if (showTable != value && value == false)
-                {
-                    Top = Top + 250;
-                }
-                else if (showTable != value && value == true)
-                {
-                    Top = Top - 250;
-                }
                 showTable = value;
                 if (PropertyChanged != null)
                     PropertyChanged(this, new PropertyChangedEventArgs("ShowTable"));
+
+                if (value)
+                {
+                    if (tablewindow == null || tablewindow.IsLoaded == false)
+                        tablewindow = new TableWindow();
+
+                    Point tmp = new Point(Left, Top-tablewindow.Height);
+                    Point Bottmp = new Point(Left + tablewindow.Width, Top);
+
+                    int topcheck = CornersVisible(tmp,Bottmp);
+                    Bottmp.Y = Top + Height + tablewindow.Height;
+                    tmp.Y = Top + Height;
+                    int botcheck = CornersVisible(tmp, Bottmp);
+                    if (topcheck == botcheck)
+                    {
+                        if (TablePositionPreference)
+                        {
+                            botcheck = 10;
+                            topcheck = 1;
+                        }
+                        else
+                        {
+                            botcheck = 1;
+                            topcheck = 10;
+                        }
+                    }
+
+                    if (topcheck>botcheck)
+                    {
+                        tablewindow.Top = Top - tablewindow.Height;
+                        tablewindow.Left = Left;
+                    }
+                    else
+                    {
+                        tablewindow.Top = Top + Height;
+                        tablewindow.Left = Left;
+                    }
+                    tablewindow.Schedule = Schedule;
+                    tablewindow.Show();
+                    tablewindow.Activate();
+
+                }
+                else
+                {
+                    tablewindow?.Hide();
+                }
             }
         }
+
+        private TableWindow tablewindow = new TableWindow();
 
         //Event to fire when a period changed for bell
         protected virtual void OnBell(EventArgs e)
@@ -168,6 +217,7 @@ namespace MYTGS
 
         public TimetableClock()
         {
+            tablewindow.Loaded += Tablewindow_Loaded;
             Schedule = new List<TimetablePeriod>();
             InitializeComponent();
             DefClock.MouseHoveringHide += new EventHandler(Grid_MouseEnter);
@@ -186,10 +236,61 @@ namespace MYTGS
             SecTimer.Start();
         }
 
+        private void Tablewindow_Loaded(object sender, RoutedEventArgs e)
+        {
+            tablewindow.Schedule = Schedule;
+        }
+
         public void SetSchedule(List<TimetablePeriod> periods)
         {
             //Order list by start time of the periods
             Schedule = periods.OrderBy(o => o.Start).ToList();
+            if (tablewindow != null || tablewindow.IsLoaded == false)
+            {
+                tablewindow.Schedule = Schedule;
+            }
+            else
+            {
+                tablewindow = new TableWindow();
+                tablewindow.Schedule = Schedule;
+            }
+        }
+
+        //Returns the number of times the corner is visible on screens to compare
+        private int CornersVisible(Point pos, Point Botpos)
+        {
+            int count = 0;
+            var allscreens = System.Windows.Forms.Screen.AllScreens;
+            for (int i = 0; i < 4; i++)
+            {
+                Point tmp = pos;
+                switch (i)
+                {
+                    case 0:
+                        //Top left
+                        break;
+                    case 1:
+                        //Top Right
+                        tmp.X = Botpos.X;
+                        break;
+                    case 2:
+                        //Bottom Left
+                        tmp.Y = Botpos.Y;
+                        break;
+                    case 3:
+                        //Bottom Right
+                        tmp = Botpos;
+                        break;
+                }
+
+                //Check if corner is present 
+                for (int p = 0; p < allscreens.Length; p++)
+                {
+                    if (allscreens[p].Bounds.Contains((int)tmp.X, (int)tmp.Y))
+                        count++;
+                }
+            }
+            return count;
         }
         
         //Update timer
@@ -543,6 +644,11 @@ namespace MYTGS
         public static bool IsForegroundFullScreen()
         {
             return IsForegroundFullScreen(null);
+        }
+
+        private void Window_LocationChanged(object sender, EventArgs e)
+        {
+
         }
 
         public static bool IsForegroundFullScreen(System.Windows.Forms.Screen screen, bool SameScreen = false)

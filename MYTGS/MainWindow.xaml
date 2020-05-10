@@ -6,7 +6,9 @@
         xmlns:fa="http://schemas.fontawesome.com/icons/"
         xmlns:local="clr-namespace:MYTGS"
         mc:Ignorable="d"
-        Title="MYTGS" Height="450" Width="800" Closing="Window_Closing" 
+        Title="MYTGS" Closing="Window_Closing" 
+        Height="450"
+        Width="800"
         Icon="Resources/MYTGSIcon.ico" MinHeight="450" MinWidth="800">
 
     <Window.Resources>
@@ -426,6 +428,12 @@
                                         <RowDefinition Height="50px"/>
                                         <RowDefinition Height="50px"/>
                                         <RowDefinition Height="50px"/>
+                                        <RowDefinition Height="50px"/>
+                                        <RowDefinition Height="50px"/>
+                                        <RowDefinition Height="50px"/>
+                                        <RowDefinition Height="50px"/>
+                                        <RowDefinition Height="50px"/>
+                                        <RowDefinition Height="50px"/>
                                         <RowDefinition Height="auto"/>
                                     </Grid.RowDefinitions>
                                     <Label Content="Hide on fullscreen" ToolTip="Clock will hide if the currently focused window is in fullscreen" Grid.Row="0" FontSize="16" HorizontalAlignment="Right" VerticalAlignment="Center"/>
@@ -442,6 +450,49 @@
 
                                     <Label Content="Combine Doubles" ToolTip="Clock will check if there are doubles adding the total time together to display" Grid.Row="4" FontSize="16" HorizontalContentAlignment="Right" VerticalAlignment="Center"/>
                                     <CheckBox Grid.Row="4" Grid.Column="1" Margin="50,0,0,0" VerticalAlignment="Center" IsChecked="{Binding CombineDoubles, Mode=TwoWay}" HorizontalAlignment="Left" />
+                                    <Separator Grid.Row="5" Grid.ColumnSpan="2" VerticalAlignment="Top"/>
+
+
+                                    <Label Content="Placement Mode" ToolTip="Placement mode for the clock" Grid.Row="5" FontSize="16" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                    <ComboBox x:Name="PlacementModeCombo" Grid.Row="5" Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="5,0,0,0" Width="200" SelectedIndex="0" FontSize="16">
+                                        <ComboBoxItem Content="Bottom Right Corner"/>
+                                        <ComboBoxItem Content="Top Right Corner"/>
+                                        <ComboBoxItem Content="Bottom Left Corner"/>
+                                        <ComboBoxItem Content="Top Left Corner"/>
+                                        <ComboBoxItem Content="Centre"/>
+                                        <ComboBoxItem Content="Free"/>
+                                    </ComboBox>
+
+                                    <Label Content="Horizotal Offset" ToolTip="Amount of pixels or % away from the placement corner" Grid.Row="6" FontSize="16" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                    <TextBox x:Name="HorizontalOffsetTextbox" Grid.Column="1" Grid.Row="6" Width="100" Height="40" HorizontalAlignment="Left" FontSize="20" Padding="0,5" Margin="8,0,0,0" HorizontalScrollBarVisibility="Disabled" MaxLength="15" MaxLines="1" Text="0" TextAlignment="Right" TextChanged="OffsetTextbox_TextChanged" BorderThickness="2" LostKeyboardFocus="IntTextbox_LostKeyboardFocus" />
+
+                                    <Label Content="Vertical Offset" ToolTip="Amount of pixels or % away from the placement corner" Grid.Row="7" FontSize="16" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                    <TextBox x:Name="VerticalOffsetTextbox" Grid.Column="1" Grid.Row="7" Width="100" Height="40" HorizontalAlignment="Left" FontSize="20" Padding="0,5" Margin="8,0,0,0" HorizontalScrollBarVisibility="Disabled" MaxLength="15" MaxLines="1" Text="0" TextAlignment="Right" TextChanged="OffsetTextbox_TextChanged" BorderThickness="2" LostKeyboardFocus="IntTextbox_LostKeyboardFocus" />
+
+                                    <Label Content="Screen preference" ToolTip="Will try to put clock on that screen otherwise defaults to primary screen" Grid.Row="8" FontSize="16" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                    <Button Content="-" Grid.Row="8" Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Center" BorderBrush="{x:Null}" Click="Button_Click_8" Width="18" Foreground="#FF0481FF"/>
+                                    <Label Grid.Row="8" Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="16,0,0,0" FontSize="16" Content="{Binding tmpScreen, FallbackValue=0}" Width="28"/>
+                                    <Button Content="+" Grid.Row="8" Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Center" BorderBrush="{x:Null}" Margin="40,0,0,0" Click="Button_Click_9" Foreground="#FF0481FF"/>
+                                    <Label Grid.Row="8" Grid.Column="1" Content="Primary Screen" FontSize="12" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="70,0,0,0">
+                                        <Label.Style>
+                                            <Style TargetType="{x:Type Label}">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding tmpScreen, FallbackValue=0}" Value="0">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Label.Style>
+                                    </Label>
+
+                                    <Label Content="Table preference" ToolTip="Choose preferred location for table" Grid.Row="9" FontSize="16" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                    <ComboBox x:Name="TablePreferenceComboBox" Grid.Row="9" Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="5,0,0,0" Width="200" SelectedIndex="0" FontSize="16">
+                                        <ComboBoxItem Content="Top"/>
+                                        <ComboBoxItem Content="Bottom"/>
+                                    </ComboBox>
+
+                                    <Button Grid.Row="10" Grid.Column="1" Width="150" HorizontalAlignment="Left" VerticalAlignment="Center" Content="Apply and Save" Margin="5,0,0,0" Foreground="#FF0481FF" Click="Button_Click_10" FontSize="16"/>
 
                                 </Grid>
                             </Expander>
@@ -460,7 +511,8 @@
 
 
                                     <Button Grid.Column="2" Width="100" Content="Test bell" Click="Button_Click_6" IsEnabled="False" Visibility="Collapsed"/>
-                                    
+
+                                    <Label Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="100,0,0,0" Foreground="#FF666666" Content="Note: Will automatically disable at school" FontSize="12" />
                                     <Label Content="Bell Enabled" ToolTip="Sets a registry key to startup program" Grid.Row="0" FontSize="16" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                                     <CheckBox x:Name="BellCheckBox" Grid.Column="1" Grid.Row="0" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="50,0,0,0" IsChecked="{Binding EnableBell}" />
 

@@ -57,6 +57,7 @@ namespace MYTGS
         bool safeclose = false;
         bool offlineMode = false;
         const string SchoolDBFile = "Trinity";
+        public int tmpScreen { get; set; } = 1;
         
 
         //Get path to database
@@ -139,6 +140,14 @@ namespace MYTGS
             UpdateTimer.Tick += UpdateTimer_Tick;
             InitializeComponent(); //Initialize WPF Window and objects
 
+            PlacementModeCombo.SelectedIndex = ClockPlacementMode;
+            HorizontalOffsetTextbox.Text = XOffset;
+            VerticalOffsetTextbox.Text = YOffset;
+            if (TablePreference)
+            {
+                TablePreferenceComboBox.SelectedIndex = 1;
+            }
+
             for (int i = 0; i < AudioDevicesList.Count; i++)
             {
                 if (AudioDevicesList[i].Guid.ToString() == SelectedAudioDevice)
@@ -160,11 +169,9 @@ namespace MYTGS
             
             ClockWindow.Background = new SolidColorBrush(Color.FromArgb(0, 255, 255, 255));
             ClockWindow.Show();
+            SetClockPosition(XOffset, YOffset, ScreenPreference, ClockPlacementMode);
 
-            //Position clock
-            ClockWindow.Left = System.Windows.SystemParameters.WorkArea.Width - ClockWindow.Width;
-            ClockWindow.Top = System.Windows.SystemParameters.WorkArea.Height - ClockWindow.Height;
-            
+
             if (StartMinimized && !Firsttime)
             {
                 ShowInTaskbar = false;
@@ -242,6 +249,145 @@ namespace MYTGS
             }
         }
 
+        private void SetClockPosition(string xstring, string ystring, int screenpref, int mode)
+        {
+            try
+            {
+            var allscreens = System.Windows.Forms.Screen.AllScreens;
+            if (allscreens.Length == 0)
+            {
+                ClockWindow.Top = 0;
+                ClockWindow.Left = 0;
+                return;
+            }
+
+            System.Drawing.Rectangle screenbounds = new System.Drawing.Rectangle();
+            if (screenpref == 0 || screenpref > allscreens.Length)
+            {
+                screenbounds = new System.Drawing.Rectangle(0, 0, (int)SystemParameters.WorkArea.Width, (int)SystemParameters.WorkArea.Height);
+            }
+            else
+            {
+                screenbounds = allscreens[screenpref - 1].WorkingArea;
+            }
+
+            xstring = xstring.Trim();
+            ystring = ystring.Trim();
+            double xdisplacement = 0;
+            double ydisplacement = 0;
+            if (xstring.EndsWith("%"))
+            {
+                double.TryParse(xstring.Substring(0, xstring.Length - 1), out xdisplacement);
+                xdisplacement = screenbounds.Width * xdisplacement / 100;
+            }
+            else
+            {
+                double.TryParse(xstring, out xdisplacement);
+            }
+
+            if (ystring.EndsWith("%"))
+            {
+                double.TryParse(ystring.Substring(0, ystring.Length - 1), out ydisplacement);
+                ydisplacement = screenbounds.Height * ydisplacement / 100;
+            }
+            else
+            {
+                double.TryParse(ystring, out ydisplacement);
+            }
+            
+
+            Point clockpos = new Point();
+            switch (mode)
+            {
+                case 1:
+                    clockpos.X = screenbounds.Right - xdisplacement - ClockWindow.Width;
+                    clockpos.Y = screenbounds.Top + ydisplacement;
+
+                    break;
+                case 2:
+                    clockpos.X = screenbounds.Left + xdisplacement;
+                    clockpos.Y = screenbounds.Bottom - ydisplacement-ClockWindow.Height;
+
+                    break;
+                case 3:
+                    clockpos.X = screenbounds.Left + xdisplacement;
+                    clockpos.Y = screenbounds.Top + ydisplacement;
+
+                    break;
+                case 4:
+                    clockpos.X = screenbounds.Left + ((screenbounds.Width-ClockWindow.Width)/2) + xdisplacement;
+                    clockpos.Y = screenbounds.Top + ((screenbounds.Height-ClockWindow.Height)/2) + ydisplacement;
+
+                    break;
+                case 5:
+                    clockpos.X = xdisplacement;
+                    clockpos.Y = ydisplacement;
+
+                    break;
+                default:
+                    clockpos.X = screenbounds.Right - xdisplacement - ClockWindow.Width;
+                    clockpos.Y = screenbounds.Bottom - ydisplacement - ClockWindow.Height;
+                    break;
+            }
+
+            clockpos = ClampWindowPos(clockpos, ClockWindow.Width, ClockWindow.Height);
+            ClockWindow.Left = clockpos.X;
+            ClockWindow.Top = clockpos.Y;
+            }
+            catch(Exception e)
+            {
+                logger.Error(e, "unable to set clockwindow position");
+            }
+        }
+
+        //Clamp window location to closest Screen preventing it from going off
+        private Point ClampWindowPos(Point windowlocation, double width, double height)
+        {
+            //Find closest screen
+            var res = System.Windows.Forms.Screen.AllScreens;
+            //No screens? then how can this even be determined
+            if (res.Length == 0)
+            {
+                return windowlocation;
+            }
+            
+            int close = 0;
+            double closeness = double.PositiveInfinity;
+            for (int i = 0; i < res.Length; i++)
+            {
+                double xpos = res[i].Bounds.Left - windowlocation.X + ((res[i].Bounds.Width - width) / 2);
+                double ypos = res[i].Bounds.Top - windowlocation.Y + ((res[i].Bounds.Height - height) / 2);
+                double dis = xpos * xpos + ypos * ypos;
+                if (dis < closeness)
+                {
+                    closeness = dis;
+                    close = i;
+                }
+            }
+
+            //Clamp to screen position
+            if (windowlocation.Y < res[close].Bounds.Top)
+            {
+                windowlocation.Y = res[close].Bounds.Top;
+            }
+            else if (windowlocation.Y+height > res[close].Bounds.Bottom)
+            {
+                windowlocation.Y = res[close].Bounds.Bottom - height;
+            }
+
+            if (windowlocation.X < res[close].Bounds.Left)
+            {
+                windowlocation.X = res[close].Bounds.Left;
+            }
+            else if (windowlocation.X + width > res[close].Bounds.Right)
+            {
+                windowlocation.X = res[close].Bounds.Right - width;
+            }
+
+            return windowlocation;
+
+        }
+
         private bool ConnectedToDomain()
         {
             try
@@ -249,7 +395,7 @@ namespace MYTGS
                 System.DirectoryServices.ActiveDirectory.Domain.GetComputerDomain();
                 return true;
             }
-            catch
+            catch(Exception e)
             {
                 //Do nothing
             }
@@ -686,39 +832,6 @@ namespace MYTGS
             });
             //Environment.ExpandEnvironmentVariables((string)Properties.Settings.Default["TasksPath"])
         }
-
-        //private int[] UpdateTasks(string filepath)
-        //{
-        //    int[] AllIDs = FF.GetAllIds();
-        //    Array.Reverse(AllIDs); //Reverse Order of the IDs 
-        //    List<int> NewIDs = new List<int>();
-        //    foreach (int ID in AllIDs)
-        //    {
-        //        if (Tasks.ContainsKey(ID))
-        //        {
-        //            //Update the cached version
-        //            Firefly.Response[] tmpresps= FF.GetResponseForID(ID);
-        //            if (tmpresps == null)
-        //                continue;
-        //            Tasks[ID] = FF.UpdateResponses(Tasks[ID], tmpresps);
-        //            SaveTask(filepath + ID + @"\Task.json" ,Tasks[ID]);
-        //        }
-        //        else
-        //        {
-        //            NewIDs.Add(ID);
-        //        }
-        //    }
-
-        //    Firefly.FullTask[] tmp = FF.GetAllTasksByIds(NewIDs.ToArray());
-        //    foreach (Firefly.FullTask item in tmp)
-        //    {
-        //        Tasks.Add(item.id, item);
-        //        SaveTask(filepath + item.id + @"\Task.json", item);
-        //    }
-
-        //    //return newly added items
-        //    return NewIDs.ToArray();
-        //}
         
         //Registry edits that don't require admin
         public void AddApplicationToStartup()
@@ -1205,6 +1318,73 @@ namespace MYTGS
                 //Link to default audio device
                 outputAudioDevice = new DirectSoundOut();
             }
+        }
+
+        private void Button_Click_8(object sender, RoutedEventArgs e)
+        {
+            if (tmpScreen >= 1)
+                tmpScreen--;
+
+            if (PropertyChanged != null)
+            {
+                PropertyChanged(this, new PropertyChangedEventArgs("tmpScreen"));
+            }
+        }
+
+        private void Button_Click_9(object sender, RoutedEventArgs e)
+        {
+            tmpScreen++;
+
+            if (PropertyChanged != null)
+            {
+                PropertyChanged(this, new PropertyChangedEventArgs("tmpScreen"));
+            }
+        }
+
+        private void OffsetTextbox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (sender is TextBox)
+            {
+                if (!IsLoaded && ((TextBox)sender).Text.Length == 0)
+                {
+                    ((TextBox)sender).Text = "0";
+                    ((TextBox)sender).BorderBrush = new SolidColorBrush(Color.FromArgb(0xFF, 0xAB, 0xAD, 0xB3));
+                }
+
+                if ((Regex.IsMatch(((TextBox)sender).Text, @"^(-)?[0-9]*(\.)?[0-9]*%$") && double.TryParse(((TextBox)sender).Text.Substring(0, ((TextBox)sender).Text.Length - 1), out double p)))
+                {
+                    ((TextBox)sender).BorderBrush = new SolidColorBrush(Color.FromArgb(0xFF, 0xAB, 0xAD, 0xB3));
+                }
+                else if (Regex.IsMatch(((TextBox)sender).Text, @"^(-)?[0-9]{1,20}$"))
+                {
+                    ((TextBox)sender).BorderBrush = new SolidColorBrush(Color.FromArgb(0xFF, 0xAB, 0xAD, 0xB3));
+                }
+                else
+                {
+                    ((TextBox)sender).BorderBrush = new SolidColorBrush(Color.FromArgb(0xFF, 0xFF, 0x00, 0x00));
+                }
+            }
+
+        }
+
+        private void IntTextbox_LostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+        {
+            if (((TextBox)sender).Text.Length == 0)
+            {
+                ((TextBox)sender).Text = "0";
+            }
+        }
+
+        //Apply changes to clock placement
+        private void Button_Click_10(object sender, RoutedEventArgs e)
+        {
+            XOffset = HorizontalOffsetTextbox.Text;
+            YOffset = VerticalOffsetTextbox.Text;
+            ClockPlacementMode = PlacementModeCombo.SelectedIndex;
+            ScreenPreference = tmpScreen;
+            TablePreference = TablePreferenceComboBox.SelectedIndex == 1;
+
+            SetClockPosition(XOffset, YOffset, ScreenPreference, ClockPlacementMode);
         }
     }
 }

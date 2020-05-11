@@ -46,6 +46,7 @@ namespace MYTGS
         bool PlannerCurrentDay = true;
         private bool IsFirstTime = false;
         DirectSoundOut outputAudioDevice = new DirectSoundOut();
+        public bool TodayEarlyFinish { get; set; }
 
 
         public List<TimetablePeriod> ClockSchedule { get => ClockWindow.Schedule; }

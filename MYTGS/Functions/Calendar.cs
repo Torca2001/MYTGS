@@ -107,9 +107,11 @@ namespace MYTGS
             {
                 if (item.DtStart.DateTime.ToLocalTime().ToShortDateString() == DateTime.Now.ToShortDateString())
                 {
+                    TodayEarlyFinish = true;
                     return true;
                 }
             }
+            TodayEarlyFinish = false;
             return false;
         }
 

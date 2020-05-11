@@ -473,7 +473,7 @@ namespace MYTGS
                                             text.Margin = new Thickness(40, 0, 0, 0);
                                             text.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0xFF, 0x80, 0x00, 0x04));
                                             grid.Children.Add(text);
-                                            DashboardMessagePanel.Children.Add(border);
+                                            TaskStackPanel.Children.Add(border);
                                         }
                                         else
                                         {

@@ -414,6 +414,18 @@
 
                                     <Label Content="Early Finish" ToolTip="During startup main window will remain hidden" Grid.Row="3" FontSize="16" HorizontalContentAlignment="Right" VerticalAlignment="Center"/>
                                     <CheckBox x:Name="earlyfinishcheck" Grid.Row="3" Grid.Column="1" Margin="50,0,0,0" VerticalAlignment="Center" Click="L_Click" />
+                                    <Label Content="Today is early finish, according to school calendar" ToolTip="I'm lazy ok" Grid.Row="3" Grid.Column="1" FontSize="12" HorizontalContentAlignment="Left" VerticalAlignment="Center" Margin="80,0,0,0" Foreground="#FFC98309">
+                                        <Label.Style>
+                                            <Style TargetType="{x:Type Label}">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding TodayEarlyFinish}" Value="True">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Label.Style>
+                                    </Label>
                                 </Grid>
                             </Expander>
                             <Expander Header="Clock" Foreground="#FF0481FF" Background="{x:Null}" BorderBrush="{x:Null}">

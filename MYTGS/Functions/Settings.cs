@@ -57,7 +57,7 @@ namespace MYTGS
             }
         }
 
-        public bool GetBoolSettings(string name)
+        public bool GetBoolSettings(string name,bool fallback = false)
         {
             switch (GetSettings(name))
             {
@@ -66,7 +66,7 @@ namespace MYTGS
                 case "0":
                     return false;
                 default:
-                    return false;
+                    return fallback;
             }
         }
 
@@ -348,11 +348,11 @@ namespace MYTGS
         {
             EnableBell = settings.GetBoolSettings("EnableBell");
             TablePreference = settings.GetBoolSettings("TablePreference");
-            FadeOnHover = settings.GetBoolSettings("FadeOnHover");
-            HideOnFinish = settings.GetBoolSettings("HideOnFinish");
-            StartMinimized = settings.GetBoolSettings("StartMinimized");
-            CombineDoubles = settings.GetBoolSettings("CombineDoubles");
-            HideOnFullscreen = settings.GetBoolSettings("HideOnFullscreen");
+            FadeOnHover = settings.GetBoolSettings("FadeOnHover", true);
+            HideOnFinish = settings.GetBoolSettings("HideOnFinish", true);
+            StartMinimized = settings.GetBoolSettings("StartMinimized", true);
+            CombineDoubles = settings.GetBoolSettings("CombineDoubles",true);
+            HideOnFullscreen = settings.GetBoolSettings("HideOnFullscreen",true);
             Offset = settings.GetIntSettings("Offset");
             VolumeCtrl = settings.GetIntSettings("VolumeCtrl", 100);
 

@@ -5,8 +5,5 @@
     <Setting Name="AppPath" Type="System.String" Scope="User">
       <Value Profile="(Default)">%appdata%\MYTGS\</Value>
     </Setting>
-    <Setting Name="LastFetch" Type="System.DateTime" Scope="User">
-      <Value Profile="(Default)">2019-04-21</Value>
-    </Setting>
   </Settings>
 </SettingsFile>

@@ -330,9 +330,9 @@ namespace MYTGS
                     clockpos.Y = screenbounds.Bottom - ydisplacement - ClockWindow.Height;
                     break;
             }
-
+                
             clockpos = ClampWindowPos(clockpos, ClockWindow.Width, ClockWindow.Height);
-            ClockWindow.Left = clockpos.X;
+                ClockWindow.Left = clockpos.X;
             ClockWindow.Top = clockpos.Y;
             }
             catch(Exception e)
@@ -347,6 +347,8 @@ namespace MYTGS
             //Find closest screen
             var res = System.Windows.Forms.Screen.AllScreens;
             //No screens? then how can this even be determined
+            //Returns the number of times the corner is visible on screens to compare
+
             if (res.Length == 0)
             {
                 return windowlocation;
@@ -354,6 +356,12 @@ namespace MYTGS
             
             int close = 0;
             double closeness = double.PositiveInfinity;
+
+            bool TopLeftCorner = false;
+            bool TopRightCorner = false;
+            bool BottomLeftCorner = false;
+            bool BottomRightCorner = false;
+
             for (int i = 0; i < res.Length; i++)
             {
                 double xpos = res[i].Bounds.Left - windowlocation.X + ((res[i].Bounds.Width - width) / 2);
@@ -364,6 +372,34 @@ namespace MYTGS
                     closeness = dis;
                     close = i;
                 }
+
+
+                //Corner checking
+                if (TopLeftCorner == false && res[i].Bounds.Contains((int)windowlocation.X, (int)windowlocation.Y))
+                {
+                    TopLeftCorner = true;
+                }
+
+                if (TopRightCorner == false && res[i].Bounds.Contains((int)(windowlocation.X + width), (int)windowlocation.Y))
+                {
+                    TopRightCorner = true;
+                }
+
+                if (BottomLeftCorner == false && res[i].Bounds.Contains((int)windowlocation.X, (int)(windowlocation.Y + height)))
+                {
+                    BottomLeftCorner = true;
+                }
+
+                if (BottomRightCorner == false && res[i].Bounds.Contains((int)(windowlocation.X + width), (int)(windowlocation.Y + height)))
+                {
+                    BottomRightCorner = true;
+                }
+            }
+
+            //All corners present on a screen
+            if (TopLeftCorner && TopRightCorner && BottomLeftCorner && BottomRightCorner)
+            {
+                return windowlocation;
             }
 
             //Clamp to screen position

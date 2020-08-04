@@ -7,7 +7,7 @@
         mc:Ignorable="d"
         Title="TimetableClock" ShowInTaskbar="False" Topmost="True" WindowStartupLocation="CenterScreen" ResizeMode="NoResize" WindowStyle="None" AllowsTransparency="True" Loaded="Window_Loaded" 
         Icon="Resources/MYTGSIcon.ico"
-        SizeToContent="WidthAndHeight" LocationChanged="Window_LocationChanged"
+        SizeToContent="WidthAndHeight" LocationChanged="Window_LocationChanged" Closing="Window_Closing"
         >
 
     <Grid x:Name="ContentGrid" VerticalAlignment="Bottom" HorizontalAlignment="Right" MouseDown="ContentGrid_MouseDown" Opacity="0">

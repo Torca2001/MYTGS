@@ -1,16 +1,9 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.28307.438
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30204.135
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MYTGS", "MYTGS\MYTGS.csproj", "{23BBBE2A-E79D-4C68-A025-5598BD3DAE70}"
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{2403BAC8-A1C2-4815-A521-1A0659915989}"
-	ProjectSection(SolutionItems) = preProject
-		README.md = README.md
-	EndProjectSection
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DomainNetwork", "DomainNetwork\DomainNetwork.csproj", "{ABC7B169-37B0-46E7-AEE3-1C4DFD175862}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -22,16 +15,9 @@ Global
 		{23BBBE2A-E79D-4C68-A025-5598BD3DAE70}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{23BBBE2A-E79D-4C68-A025-5598BD3DAE70}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{23BBBE2A-E79D-4C68-A025-5598BD3DAE70}.Release|Any CPU.Build.0 = Release|Any CPU
-		{ABC7B169-37B0-46E7-AEE3-1C4DFD175862}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{ABC7B169-37B0-46E7-AEE3-1C4DFD175862}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{ABC7B169-37B0-46E7-AEE3-1C4DFD175862}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{ABC7B169-37B0-46E7-AEE3-1C4DFD175862}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
-	EndGlobalSection
-	GlobalSection(NestedProjects) = preSolution
-		{ABC7B169-37B0-46E7-AEE3-1C4DFD175862} = {2403BAC8-A1C2-4815-A521-1A0659915989}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {2D08E762-0A58-4091-9341-BFCFAB21FE9C}

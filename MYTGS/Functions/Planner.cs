@@ -123,7 +123,7 @@ namespace MYTGS
             //Return the table in array form
             return sqldb.Table<FFEvent>().ToArray();
         }
-
+        
         private void DBWipe(SQLiteConnection sqldb)
         {
 
@@ -152,7 +152,7 @@ namespace MYTGS
             return sqldb.Table<FFEvent>().Where(s => (s.start >= startUTC && s.end <= endUTC)).ToArray();
         }
 
-        private ColourItem DBGetColour(SQLiteConnection sqldb, string name)
+        private ColourItem DBGetColour(SQLiteConnection sqldb, string name, Brush fallback = null)
         {
             //Find all events that meet criteria and return array
             var temp = dbSchool.Table<ColourItem>().Where(s => s.name == name);
@@ -164,7 +164,7 @@ namespace MYTGS
             }
             else
             {
-                Brush random = ColourPallete[colourpos % ColourPallete.Count];
+                Brush random = fallback == null ? ColourPallete[colourpos % ColourPallete.Count] : fallback;
                 colourpos++;
                 DBInsert(sqldb, new ColourItem(name, random));
                 return new ColourItem(name, random);
@@ -234,6 +234,7 @@ namespace MYTGS
                     pp.SetValue(Grid.RowProperty, k+1);
                     pp.Margin = new System.Windows.Thickness(1);
                     pp.Background = DBGetColour(dbSchool, dayperiods[k].Classcode).value;
+                    pp.Foreground = DBGetColour(dbSchool, dayperiods[k].Classcode + "-text", Brushes.White).value;
                     pp.DataContext = dayperiods[k];
                     PlannerGrid.Children.Add(pp);
                 }
@@ -254,6 +255,7 @@ namespace MYTGS
                 SolidColorBrush brush = new SolidColorBrush(Color.FromArgb(picker.Color.A, picker.Color.R, picker.Color.G, picker.Color.B));
                 DBUpdateItem(dbSchool ,new ColourItem(((TimetablePeriod)((Period)sender).DataContext).Classcode, brush));
                 GeneratePlanner(PlannerDate);
+                GenerateTwoWeekTimetable();
             }
 
         }

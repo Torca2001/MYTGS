@@ -605,9 +605,21 @@ namespace Firefly
                 });
                 for (int i = 0; i < Tasks.Length; i++)
                 {
+                    //Validate data
                     if (Tasks[i].title == null)
                         Tasks[i].title = "";
                     DateTime latest = Tasks[i].setDate;
+                    if (Tasks[i].recipientsResponses == null || Tasks[i].recipientsResponses.Length < 1)
+                    {
+                        continue;
+                    }
+                    if (Tasks[i].recipientsResponses[0].responses == null)
+                    {
+                        Tasks[i].recipientsResponses[0].responses = new Response[0];
+                        continue;
+                    }
+
+                    //Locate marks and find latest activity
                     try
                     {
                         Dictionary<string, Response> nodup = new Dictionary<string, Response>();
@@ -654,6 +666,7 @@ namespace Firefly
                         Tasks[i].LatestestActivity = latest;
                     }
                 }
+
                 return Tasks;
             }
             catch(Exception e)

@@ -52,7 +52,10 @@ namespace MYTGS
 
         private void Grid_MouseDown(object sender, MouseButtonEventArgs e)
         {
-            DragMove();
+            if (e.LeftButton == MouseButtonState.Pressed)
+            {
+                DragMove();
+            }
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)

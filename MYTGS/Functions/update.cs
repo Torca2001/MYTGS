@@ -40,6 +40,7 @@ namespace MYTGS
         void ad_CheckForUpdateProgressChanged(object sender, DeploymentProgressChangedEventArgs e)
         {
             ProgressLabel.Content = String.Format("Checking for update: {0}. {1:D}K of {2:D}K downloaded.", GetProgressString(e.State), e.BytesCompleted / 1024, e.BytesTotal / 1024);
+            SettingsProgressBar.Foreground = Brushes.Green;
             SettingsProgressBar.Value = e.ProgressPercentage;
         }
 
@@ -81,7 +82,13 @@ namespace MYTGS
             if (e.UpdateAvailable)
             {
                 sizeOfUpdate = e.UpdateSizeBytes;
-                if (!e.IsUpdateRequired)
+                if (SilentUpdate == true)
+                {
+                    logger.Info("Update found, silent update in progress!");
+                    SettingsProgressBar.Foreground = Brushes.Green;
+                    BeginUpdate();
+                }
+                else if (!e.IsUpdateRequired)
                 {
                     DialogResult dr = MessageBox.Show("An update is available. Would you like to update the application now?", "Update Available", MessageBoxButtons.OKCancel);
                     logger.Info("Update detected, requesting user confirmation");
@@ -92,6 +99,7 @@ namespace MYTGS
                     }
                     else
                     {
+                        SettingsProgressBar.Foreground = Brushes.Green;
                         UpdateButton.IsEnabled = true;
                         ProgressLabel.Content = "";
                         SettingsProgressBar.Value = 0;
@@ -99,6 +107,7 @@ namespace MYTGS
                 }
                 else
                 {
+                    SettingsProgressBar.Foreground = Brushes.Green;
                     logger.Info("Mandatory Update detected, Update will begin");
                     BeginUpdate();
                 }
@@ -107,6 +116,7 @@ namespace MYTGS
             {
                 UpdateButton.IsEnabled = true;
                 ProgressLabel.Content = "Application is Up to date!";
+                SettingsProgressBar.Foreground = Brushes.Green;
                 SettingsProgressBar.Value = 0;
                 logger.Info("Application is up to date!");
             }
@@ -130,6 +140,7 @@ namespace MYTGS
         {
             String progressText = String.Format("{0:D}K out of {1:D}K downloaded - {2:D}% complete", e.BytesCompleted / 1024, e.BytesTotal / 1024, e.ProgressPercentage);
             ProgressLabel.Content = progressText;
+            SettingsProgressBar.Foreground = Brushes.Green;
             SettingsProgressBar.Value = e.ProgressPercentage;
         }
 
@@ -150,16 +161,27 @@ namespace MYTGS
             }
 
             logger.Info("Update Complete");
-            DialogResult dr = MessageBox.Show("The application has been updated. Restart? (If you do not restart now, the new version will not take effect until after you quit and launch the application again.)", "Restart Application", MessageBoxButtons.OKCancel);
-            if (System.Windows.Forms.DialogResult.OK == dr)
+            if (SilentUpdate == true)
             {
-                logger.Info("User confirmed restart for update");
+                logger.Info("In Silent Update mode - Auto restarting!");
                 safeclose = true;
-                Application.Restart();
-                Close();
+                System.Windows.Forms.Application.Restart();
+                System.Windows.Application.Current.Shutdown();
+            }
+            else
+            {
+                DialogResult dr = MessageBox.Show("The application has been updated. Restart? (If you do not restart now, the new version will not take effect until after you quit and launch the application again.)", "Restart Application", MessageBoxButtons.OKCancel);
+                if (System.Windows.Forms.DialogResult.OK == dr)
+                {
+                    logger.Info("User confirmed restart for update");
+                    safeclose = true; 
+                    System.Windows.Forms.Application.Restart();
+                    System.Windows.Application.Current.Shutdown();
+                }
             }
             UpdateButton.IsEnabled = true;
             ProgressLabel.Content = "";
+            SettingsProgressBar.Foreground = Brushes.Green;
             SettingsProgressBar.Value = 0;
         }
     }

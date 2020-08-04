@@ -315,6 +315,21 @@ namespace MYTGS
         }
         private bool startMinimized { get; set; }
 
+        public bool SilentUpdate
+        {
+            get => silentUpdate;
+            set
+            {
+                silentUpdate = value;
+                if (PropertyChanged != null)
+                {
+                    PropertyChanged(this, new PropertyChangedEventArgs("SilentUpdate"));
+                }
+                settings.SaveSettings("SilentUpdate", value == true ? "1" : "0");
+            }
+        }
+        private bool silentUpdate { get; set; }
+
         public bool EnableBell
         {
             get => enableBell;
@@ -329,6 +344,84 @@ namespace MYTGS
             }
         }
         private bool enableBell { get; set; }
+        public bool EnableLocalApi
+        {
+            get => enableLocalApi;
+            set
+            {
+                enableLocalApi = value;
+                if (PropertyChanged != null)
+                {
+                    PropertyChanged(this, new PropertyChangedEventArgs("EnableLocalApi"));
+                }
+                //switch api on depending on switch
+                if (enableLocalApi)
+                {
+                    initializeLocalApi((ApiEnableOpenNetwork ? "http://+:" : "http://localhost:") + ApiPort, String.Join(",", ApiCorsOrigins));
+                }
+                else
+                {
+                    LocalapiWebserver?.Dispose();
+                }
+                settings.SaveSettings("EnableLocalApi", value == true ? "1" : "0");
+            }
+        }
+        private bool enableLocalApi { get; set; }
+
+        public bool ApiHideName
+        {
+            get => apiHideName;
+            set
+            {
+                apiHideName = value;
+                if (PropertyChanged != null)
+                {
+                    PropertyChanged(this, new PropertyChangedEventArgs("ApiHideName"));
+                }
+                settings.SaveSettings("ApiHideName", value == true ? "1" : "0");
+            }
+        }
+        private bool apiHideName { get; set; }
+
+        public bool ApiEnableOpenNetwork
+        {
+            get => apiEnableOpenNetwork;
+            set
+            {
+                apiEnableOpenNetwork = value;
+                if (PropertyChanged != null)
+                {
+                    PropertyChanged(this, new PropertyChangedEventArgs("ApiEnableOpenNetwork"));
+                }
+                //Restart api if needed
+                if (enableLocalApi)
+                {
+                    initializeLocalApi((ApiEnableOpenNetwork ? "http://+:" : "http://localhost:") + ApiPort, String.Join(",", ApiCorsOrigins));
+                }
+                settings.SaveSettings("ApiEnableOpenNetwork", value == true ? "1" : "0");
+            }
+        }
+        private bool apiEnableOpenNetwork { get; set; }
+
+        public List<string> ApiCorsOrigins
+        {
+            get => apiCorsOrigins;
+            set
+            {
+                apiCorsOrigins = value;
+                if (PropertyChanged != null)
+                {
+                    PropertyChanged(this, new PropertyChangedEventArgs("ApiCorsOrigins"));
+                }
+                //Restart api if needed
+                if (enableLocalApi)
+                {
+                    initializeLocalApi((ApiEnableOpenNetwork ? "http://+:" : "http://localhost:") + ApiPort, String.Join(",", ApiCorsOrigins));
+                }
+                settings.SaveSettings("ApiCorsOrigins", JsonConvert.SerializeObject(value));
+            }
+        }
+        private List<string> apiCorsOrigins { get; set; }
 
         public DateTime DomainLastActive
         {
@@ -350,8 +443,10 @@ namespace MYTGS
             TablePreference = settings.GetBoolSettings("TablePreference");
             FadeOnHover = settings.GetBoolSettings("FadeOnHover", true);
             HideOnFinish = settings.GetBoolSettings("HideOnFinish", true);
+            SilentUpdate = settings.GetBoolSettings("SilentUpdate", true);
             StartMinimized = settings.GetBoolSettings("StartMinimized", true);
             CombineDoubles = settings.GetBoolSettings("CombineDoubles",true);
+            ApiHideName = settings.GetBoolSettings("ApiHideName", true);
             HideOnFullscreen = settings.GetBoolSettings("HideOnFullscreen",true);
             Offset = settings.GetIntSettings("Offset");
             VolumeCtrl = settings.GetIntSettings("VolumeCtrl", 100);
@@ -370,6 +465,22 @@ namespace MYTGS
             catch
             {
                 FirstDayDate = new DateTime(2020, 2, 10);
+            }
+
+            try
+            {
+                if (settings.GetSettings("ApiCorsOrigins") == "")
+                {
+                    apiCorsOrigins = new List<string>() {"https://torca.xyz"};
+                }
+                else
+                {
+                    apiCorsOrigins = JsonConvert.DeserializeObject<List<string>>(settings.GetSettings("ApiCorsOrigins"));
+                }
+            }
+            catch
+            {
+                apiCorsOrigins = new List<string>() { "https://torca.xyz" };
             }
 
             try
@@ -411,6 +522,10 @@ namespace MYTGS
                     lastEPR.Day = 1;
                 }
             }
+
+            //Executed later to prevent constant restart
+            EnableLocalApi = settings.GetBoolSettings("EnableLocalApi", true);
+
 
             Guid tp = Guid.Empty;
             Guid.TryParse(settings.GetSettings("SelectedAudioDevice"), out tp);

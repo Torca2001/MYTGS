@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:sys="clr-namespace:System;assembly=mscorlib"
+             xmlns:fa="http://schemas.fontawesome.com/icons/"
              xmlns:local="clr-namespace:MYTGS"
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800" Width="250" Height="60">
@@ -14,6 +15,19 @@
         <Label x:Name="DescLabel" FontSize="16" FontWeight="Bold" Content="{Binding LabelDesc, FallbackValue=Maths}" HorizontalAlignment="Left" VerticalAlignment="Top" Foreground="White" Margin="15,0,0,0"/>
         <Label x:Name="Noticeme" FontSize="16" FontWeight="Bold" HorizontalAlignment="Left" VerticalAlignment="Bottom" Content="{Binding CountDownStr, FallbackValue=00:00:00}" Foreground="White" Margin="15,0,0,0"/>
         <Label x:Name="RoomLabel" Content="{Binding LabelRoom, FallbackValue=CR123}" FontSize="16" FontWeight="Bold" VerticalAlignment="Bottom" HorizontalAlignment="Right" Foreground="White" Margin="0,0,5,0"/>
+        <fa:SvgAwesome x:Name="ChangesIndicator" Height="16" Icon="Solid_Exclamation" VerticalAlignment="Top" HorizontalAlignment="Right" Foreground="#FFFF8B00" Margin="0,8,10,0" ToolTip="Changes to classes">
+            <fa:SvgAwesome.Style>
+                <Style TargetType="{x:Type fa:SvgAwesome}">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding ClassChanges, FallbackValue=false}" Value="true">
+                            <Setter Property="Visibility" Value="Visible"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </fa:SvgAwesome.Style>
+        </fa:SvgAwesome>
+        
         <Label x:Name="DayLabel" FontWeight="Bold" Content="{Binding CurrentTimetableDay, FallbackValue=Day 0}" VerticalAlignment="Bottom" HorizontalAlignment="Left" Foreground="White" Margin="-3,0,0,2" RenderTransformOrigin="0.5,0.5" FontSize="10">
 
             <Label.Resources>

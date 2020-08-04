@@ -20,12 +20,40 @@ namespace MYTGS
             //replacement\s{0,4}(?i)teachers(?:.|\n)*?<tbody.*?>((?:.|\n)*?)<\/tbody.*?> // Locates the teacher replacement table
             //(<tr>[\s\S]*?<\/tr>) //Get the row 
             //<[^\/]*>\s*([\s\S]*?)\s*?<\/ //Gets the content of each coloumn excluding the html only getting innner most html
+
+
             EPRcollection EPR = new EPRcollection(new DateTime(), new Dictionary<string, TimetablePeriod>(), 0);
+
+            
+            ////Debug function to only run during debug mode
+            //if (System.Deployment.Application.ApplicationDeployment.IsNetworkDeployed == false)
+            //{
+            //    Console.WriteLine("EPR Debug mode on!");
+            //    EPR.Date = DateTime.Now;
+            //    EPR.Day = DateTime.Now.DayOfWeek == DayOfWeek.Monday ? 2 : 0;
+            //    TimetablePeriod tt = new TimetablePeriod();
+            //    tt.TeacherChange = true;
+            //    tt.RoomChange = true;
+            //    tt.Teacher = "New Teacher";
+            //    tt.Roomcode = "3TEST3";
+            //    for (int i = 0; i < 7; i++)
+            //    {
+            //        EPR.Changes.Add("122MM4-"+i, tt);
+            //    }
+            //    tt.Teacher = "New Teacher2";
+            //    tt.Roomcode = "5TEST5";
+            //    for (int i = 0; i < 7; i++)
+            //    {
+            //        EPR.Changes.Add("122MS1-"+i, tt);
+            //    }
+            //    return EPR;
+            //}
+
             bool ErrorsParsing = false;
             try
             {
                 EPRstr = Regex.Replace(EPRstr, @"\t|\n|\r", "");
-                Match header = Regex.Match(EPRstr, @"day\s*([0-9]0?)[\s:]*(\d{1,2})\s*\/\s*(\d{1,2})\s*\/\s*(\d{4,})", RegexOptions.IgnoreCase);
+                Match header = Regex.Match(EPRstr, @"day\s*?([0-9]0?)[\s:]*(\d{1,2})\s*\/\s*(\d{1,2})\s*\/\s*(\d{4,})", RegexOptions.IgnoreCase);
                 if (!header.Success)
                 {
                     throw new Exception("No Header located");
@@ -42,20 +70,48 @@ namespace MYTGS
                 if (RoomChangeTable.Success)
                 {
                     MatchCollection Rows = Regex.Matches(RoomChangeTable.Groups[1].Value, @"<tr>([\s\S]*?)<\/tr>");
+
+                    MatchCollection columnfirst = Regex.Matches(Rows[0].Value, @"<[^\/]*>\s*([^<>]+?)\s*<\/", RegexOptions.IgnoreCase);
+                    int PeriodColoumn = 0;
+                    int ClassColoumn = 2;
+                    int TeacherColoumn = 3;
+                    int RoomcodeColoumn = 5;
+                    for (int i = 0; i < columnfirst.Count; i++)
+                    {
+                        if (columnfirst[i].Groups[1].Value.ToLower().Contains("period"))
+                        {
+                            PeriodColoumn = i;
+                        }
+                        else if (columnfirst[i].Groups[1].Value.Trim().ToLower().StartsWith("class"))
+                        {
+                            ClassColoumn = i;
+                        }
+                        else if (columnfirst[i].Groups[1].Value.Trim().ToLower().StartsWith("teacher"))
+                        {
+                            TeacherColoumn = i;
+                        }
+                        else if (columnfirst[i].Groups[1].Value.ToLower().Contains("new room"))
+                        {
+                            RoomcodeColoumn = i;
+                        }
+                    }
+
                     //Ignore first row since its just the headers
                     for (int i = 1; i < Rows.Count; i++)
                     {
                         try
                         {
-                            MatchCollection columns = Regex.Matches(Rows[i].Value, @"<[^\/]*>\s*([\s\S]*?)\s*?<\/", RegexOptions.IgnoreCase);
-                            if (string.IsNullOrWhiteSpace(columns[2].Groups[1].Value) || EPR.Changes.ContainsKey(columns[2].Groups[1].Value + "-" + Convert.ToInt32(columns[0].Groups[1].Value)))
+                            //There shouldn't ever be clashes on first run
+                            MatchCollection columns = Regex.Matches(Rows[i].Value, @"<[^\/]*>\s*([^<>]+?)\s*<\/", RegexOptions.IgnoreCase);
+                            if (string.IsNullOrWhiteSpace(columns[ClassColoumn].Groups[1].Value) || EPR.Changes.ContainsKey(columns[ClassColoumn].Groups[1].Value + "-" + Convert.ToInt32(columns[PeriodColoumn].Groups[1].Value)))
                                 continue;
                             TimetablePeriod period = new TimetablePeriod()
                             {
-                                period = Convert.ToInt32(columns[0].Groups[1].Value),
-                                Classcode = columns[2].Groups[1].Value,
-                                Teacher = columns[3].Groups[1].Value,
-                                Roomcode = columns[5].Groups[1].Value
+                                period = Convert.ToInt32(columns[PeriodColoumn].Groups[1].Value),
+                                Classcode = columns[ClassColoumn].Groups[1].Value,
+                                Teacher = columns[TeacherColoumn].Groups[1].Value,
+                                Roomcode = columns[RoomcodeColoumn].Groups[1].Value,
+                                RoomChange = true
                             };
                             EPR.Changes.Add(period.Classcode + "-" + period.period, period);
                         }
@@ -70,28 +126,58 @@ namespace MYTGS
                 if (TeacherChangeTable.Success)
                 {
                     MatchCollection Rows = Regex.Matches(TeacherChangeTable.Groups[1].Value, @"<tr>([\s\S]*?)<\/tr>");
+
+                    //Will make coloum title to its respective coloumns
+                    MatchCollection columnfirst = Regex.Matches(Rows[0].Value, @"<[^\/]*>\s*([^<>]+?)\s*<\/", RegexOptions.IgnoreCase);
+                    int PeriodColoumn = 0;
+                    int ClassColoumn = 2;
+                    int TeacherColoumn = 5;
+                    int RoomcodeColoumn = 1;
+                    for (int i = 0; i < columnfirst.Count; i++)
+                    {
+                        if (columnfirst[i].Groups[1].Value.ToLower().Contains("period"))
+                        {
+                            PeriodColoumn = i;
+                        }
+                        else if (columnfirst[i].Groups[1].Value.Trim().ToLower().StartsWith("class"))
+                        {
+                            ClassColoumn = i;
+                        }
+                        else if (columnfirst[i].Groups[1].Value.Trim().ToLower().StartsWith("replacement teacher"))
+                        {
+                            TeacherColoumn = i;
+                        }
+                        else if (columnfirst[i].Groups[1].Value.ToLower().Contains("room"))
+                        {
+                            RoomcodeColoumn = i;
+                        }
+                    }
+
                     //Ignore first row since its just the headers
                     for (int i = 1; i < Rows.Count; i++)
                     {
                         try
                         {
-                            MatchCollection columns = Regex.Matches(Rows[i].Value, @"<[^\/]*>\s*([\s\S]*?)\s*?<\/", RegexOptions.IgnoreCase);
-                            if (string.IsNullOrWhiteSpace(columns[2].Groups[1].Value))
+                            MatchCollection columns = Regex.Matches(Rows[i].Value, @"<[^\/]*>\s*([^<>]+?)\s*<\/", RegexOptions.IgnoreCase);
+                            if (string.IsNullOrWhiteSpace(columns[ClassColoumn].Groups[1].Value))
                                 continue;
-                            if (EPR.Changes.ContainsKey(columns[2].Groups[1].Value + "-" + Convert.ToInt16(columns[0].Groups[1].Value)))
+                            int PeriodTmp = Convert.ToInt16(columns[PeriodColoumn].Groups[1].Value);
+                            if (EPR.Changes.ContainsKey(columns[ClassColoumn].Groups[1].Value + "-" + PeriodTmp))
                             {
-                                TimetablePeriod roomchangeditem = EPR.Changes[columns[2].Groups[1].Value + "-" + Convert.ToInt16(columns[0].Groups[1].Value)];
-                                roomchangeditem.Teacher = columns[5].Groups[1].Value;
-                                EPR.Changes[columns[2].Groups[1].Value + "-" + Convert.ToInt16(columns[0].Groups[1].Value)] = roomchangeditem;
+                                TimetablePeriod roomchangeditem = EPR.Changes[columns[ClassColoumn].Groups[1].Value + "-" + PeriodTmp];
+                                roomchangeditem.Teacher = columns[TeacherColoumn].Groups[1].Value;
+                                roomchangeditem.TeacherChange = true;
+                                EPR.Changes[columns[ClassColoumn].Groups[1].Value + "-" + PeriodTmp] = roomchangeditem;
                             }
                             else
                             {
                                 TimetablePeriod period = new TimetablePeriod()
                                 {
-                                    period = Convert.ToInt16(columns[0].Groups[1].Value),
-                                    Classcode = columns[2].Groups[1].Value,
-                                    Teacher = columns[5].Groups[1].Value,
-                                    Roomcode = columns[1].Groups[1].Value
+                                    period = PeriodTmp,
+                                    Classcode = columns[ClassColoumn].Groups[1].Value,
+                                    Teacher = columns[TeacherColoumn].Groups[1].Value,
+                                    Roomcode = columns[RoomcodeColoumn].Groups[1].Value,
+                                    TeacherChange = true
                                 };
                                 EPR.Changes.Add(period.Classcode + "-" + period.period, period);
                             }
@@ -137,6 +223,26 @@ namespace MYTGS
             Changes = new Dictionary<string, TimetablePeriod>();
             Day = 0;
             Errors = false;
+        }
+    }
+
+    public struct EPRPeriod
+    {
+        public int Period;
+        public string ClassCode;
+        public string RoomCode;
+        public string Teacher;
+        public bool TeacherChange;
+        public bool RoomChange;
+
+        public EPRPeriod(int period, string classCode, string roomCode, string teacher, bool teacherChange, bool roomChange)
+        {
+            Period = period;
+            ClassCode = classCode;
+            RoomCode = roomCode;
+            Teacher = teacher;
+            TeacherChange = teacherChange;
+            RoomChange = roomChange;
         }
     }
 }

@@ -63,9 +63,10 @@ namespace MYTGS
                     }
                 }
             }
-            catch
+            catch(Exception e)
             {
                 logger.Warn("Unable to convert Calendar");
+                logger.Warn(e);
             }
         }
 

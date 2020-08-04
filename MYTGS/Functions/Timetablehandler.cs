@@ -277,6 +277,19 @@ namespace MYTGS
         public int period { get; set; }
         public string Teacher { get; set; }
 
+        [Newtonsoft.Json.JsonIgnore]
+        public bool TeacherChange { get; set; }
+
+        [Newtonsoft.Json.JsonIgnore]
+        public bool RoomChange { get; set; }
+
+        [Newtonsoft.Json.JsonIgnore]
+        public bool Changes { get
+            {
+                return RoomChange || TeacherChange;
+            } 
+        }
+
         public TimetablePeriod(DateTime start, DateTime end, string description, string classcode, string roomcode, bool gotoPeriod, int period)
         {
             Start = start;
@@ -286,6 +299,8 @@ namespace MYTGS
             Roomcode = roomcode;
             GotoPeriod = gotoPeriod;
             Teacher = "";
+            TeacherChange = false;
+            RoomChange = false;
             this.period = period;
         }
 
@@ -298,9 +313,12 @@ namespace MYTGS
             Roomcode = roomcode;
             GotoPeriod = gotoPeriod;
             Teacher = teacher;
+            TeacherChange = false;
+            RoomChange = false;
             this.period = period;
         }
 
+        [Newtonsoft.Json.JsonIgnore]
         public string Tooltip
         {
             get

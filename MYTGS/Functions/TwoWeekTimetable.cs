@@ -13,6 +13,7 @@ using System.Windows.Media;
 using System.Windows.Controls;
 using Newtonsoft.Json;
 using System.Windows.Forms;
+using System.Windows;
 //Code for calculating two week timetable and populating wpf page
 
 namespace MYTGS
@@ -21,6 +22,32 @@ namespace MYTGS
     {
         ColorDialog picker = new ColorDialog();
         public int CurrentTimetableDay { get => CalculateTimetableDay(DateTime.Now); }
+        public int SelectedDay { 
+            get => selectedDay; 
+            set
+            {
+                selectedDay = value;
+                if (PropertyChanged != null)
+                {
+                    PropertyChanged(this, new PropertyChangedEventArgs("SelectedDay"));
+                }
+            }
+        }
+        private int selectedDay = 0;
+
+        public bool ShowPeriodSidePanel
+        {
+            get { return showPeriodSidePanel; }
+            set
+            {
+                showPeriodSidePanel = value;
+                if (PropertyChanged != null)
+                {
+                    PropertyChanged(this, new PropertyChangedEventArgs("ShowPeriodSidePanel"));
+                }
+            }
+        }
+        private bool showPeriodSidePanel = false;
         public DateTime FirstDayDate { get => firstDayDate;
             set
                 {
@@ -70,8 +97,11 @@ namespace MYTGS
             eprday = eprday.Subtract(eprday.TimeOfDay);
             if (eprday.DayOfWeek == DayOfWeek.Monday)
             {
+                if (FirstDayDate != eprday)
+                {
+                    logger.Info("Updated first day " + eprday.ToString() + " is now day 1");
+                }
                 FirstDayDate = eprday;
-                logger.Info("Updated first day " + eprday.ToString() + " is now day 1");
             }
             else
             {
@@ -197,6 +227,7 @@ namespace MYTGS
                     pp.SetValue(Grid.ColumnProperty, i);
                     pp.SetValue(Grid.RowProperty, k);
                     pp.Margin = new System.Windows.Thickness(1);
+                    pp.Foreground = DBGetColour(dbSchool, TwoWeekTimetable[i, k].Classcode + "-text", Brushes.White).value;
                     pp.Background = DBGetColour(dbSchool, TwoWeekTimetable[i, k].Classcode).value;
                     pp.DataContext = TwoWeekTimetable[i, k];
                     TwoWeekTimetableGrid.Children.Add(pp);
@@ -221,18 +252,66 @@ namespace MYTGS
 
         private void TT_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
-            //((TimetablePeriod)((Period)sender).DataContext).Classcode
-            picker.AllowFullOpen = true;
-            picker.AnyColor = true;
-            Color ck = ((SolidColorBrush)((Period)sender).Background).Color;
-            picker.Color = System.Drawing.Color.FromArgb(ck.A, ck.R, ck.G, ck.B);
-            if (picker.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+            if ((sender is Period) == false)
             {
-                SolidColorBrush brush = new SolidColorBrush(Color.FromArgb(picker.Color.A, picker.Color.R, picker.Color.G, picker.Color.B));
-                DBUpdateItem(dbSchool, new ColourItem(((TimetablePeriod)((Period)sender).DataContext).Classcode, brush));
-                GenerateTwoWeekTimetable();
+                return;
             }
 
+            //((TimetablePeriod)((Period)sender).DataContext).Classcode
+            if (SelectedDay != Grid.GetColumn((Period)sender)+1 || PeriodSideGrid.DataContext != ((Period)sender).DataContext)
+            {
+                ShowPeriodSidePanel = true;
+                PeriodSideGrid.DataContext = ((Period)sender).DataContext;
+                SelectedDay = Grid.GetColumn((Period)sender)+1;
+            }
+            else
+            {
+                ShowPeriodSidePanel = !ShowPeriodSidePanel;
+            }
+        }
+
+        //Relevant UI events for Timetable
+
+        //Close side window
+        private void Button_Click_11(object sender, RoutedEventArgs e)
+        {
+            ShowPeriodSidePanel = false;
+        }
+
+        //Change Text Colour
+        private void Button_Click_12(object sender, RoutedEventArgs e)
+        {
+            if (sender is System.Windows.Controls.Button && ((System.Windows.Controls.Button)sender).DataContext is TimetablePeriod)
+            {
+                picker.AllowFullOpen = true;
+                picker.AnyColor = true;
+                Color ck = ((SolidColorBrush)DBGetColour(dbSchool, ((TimetablePeriod)((System.Windows.Controls.Button)sender).DataContext).Classcode + "-text").value).Color;
+                picker.Color = System.Drawing.Color.FromArgb(ck.A, ck.R, ck.G, ck.B);
+                if (picker.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+                {
+                    SolidColorBrush brush = new SolidColorBrush(Color.FromArgb(picker.Color.A, picker.Color.R, picker.Color.G, picker.Color.B));
+                    DBUpdateItem(dbSchool, new ColourItem(((TimetablePeriod)((System.Windows.Controls.Button)sender).DataContext).Classcode + "-text", brush));
+                    GenerateTwoWeekTimetable();
+                }
+            }
+        }
+
+        //Change Background Colour
+        private void Button_Click_13(object sender, RoutedEventArgs e)
+        {
+            if (sender is System.Windows.Controls.Button && ((System.Windows.Controls.Button)sender).DataContext is TimetablePeriod)
+            {
+                picker.AllowFullOpen = true;
+                picker.AnyColor = true;
+                Color ck = ((SolidColorBrush)DBGetColour(dbSchool, ((TimetablePeriod)((System.Windows.Controls.Button)sender).DataContext).Classcode).value).Color;
+                picker.Color = System.Drawing.Color.FromArgb(ck.A, ck.R, ck.G, ck.B);
+                if (picker.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+                {
+                    SolidColorBrush brush = new SolidColorBrush(Color.FromArgb(picker.Color.A, picker.Color.R, picker.Color.G, picker.Color.B));
+                    DBUpdateItem(dbSchool, new ColourItem(((TimetablePeriod)((System.Windows.Controls.Button)sender).DataContext).Classcode, brush));
+                    GenerateTwoWeekTimetable();
+                }
+            }
         }
 
     }

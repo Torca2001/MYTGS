@@ -15,8 +15,6 @@ using System.Windows.Input;
 using System.Net;
 using System.ComponentModel;
 using System.Text.RegularExpressions;
-using HtmlAgilityPack;
-using System.Windows.Media.Imaging;
 using System.IO.Pipes;
 using System.Collections.ObjectModel;
 using System.Threading;
@@ -32,10 +30,12 @@ namespace MYTGS
     {
         private Logger logger = LogManager.GetCurrentClassLogger();
         //set to use only MYTGS firefly cloud 
+
+        public Mutex mutex = null;
         Firefly.Firefly FF { set; get; } = new Firefly.Firefly("MYTGS");
         public ObservableCollection<Firefly.FullTask> TaskSearch { get; set; } = new ObservableCollection<Firefly.FullTask>();
-        DispatcherTimer TenTimer = new DispatcherTimer();
-        DispatcherTimer UpdateTimer = new DispatcherTimer();
+        Timer TenTimer = null;
+        Timer UpdateTimer = null;
         public ObservableCollection<TimetablePeriod> EPRChanges { get; set; } = new ObservableCollection<TimetablePeriod>();
         public List<DirectSoundDeviceInfo> AudioDevicesList { get; set; } = new List<DirectSoundDeviceInfo>();
         TimetableClock ClockWindow = new TimetableClock();
@@ -44,6 +44,7 @@ namespace MYTGS
         Thread SearchThread = null;
         int EPRWait = 0;
         bool PlannerCurrentDay = true;
+        bool NotifyIconDoubleClick = false;
         private bool IsFirstTime = false;
         DirectSoundOut outputAudioDevice = new DirectSoundOut();
         public bool TodayEarlyFinish { get; set; }
@@ -67,9 +68,11 @@ namespace MYTGS
         private string TasksPath = Environment.ExpandEnvironmentVariables((string)Properties.Settings.Default["AppPath"]) + "Tasks\\";
 
         public MainWindow()
-        { 
+        {
+            logger.Info("Application Starting up");
             if (!Directory.Exists(Environment.ExpandEnvironmentVariables((string)Properties.Settings.Default["AppPath"])))
             {
+                logger.Info("Creating AppData Directory");
                 Directory.CreateDirectory(Environment.ExpandEnvironmentVariables((string)Properties.Settings.Default["AppPath"]));
             }
 
@@ -86,13 +89,20 @@ namespace MYTGS
 
             settings.Initalize();
 
-            //Initalize Pipe server for single instance only checking
-            NamedPipeServerStream pipeServer = new NamedPipeServerStream("MYTGS",
-               PipeDirection.InOut, 1, PipeTransmissionMode.Message, PipeOptions.Asynchronous);
+            try
+            {
+                //Initalize Pipe server for single instance only checking
+                NamedPipeServerStream pipeServer = new NamedPipeServerStream("MYTGS",
+                   PipeDirection.InOut, 1, PipeTransmissionMode.Message, PipeOptions.Asynchronous);
 
-            // Wait for a connection
-            pipeServer.BeginWaitForConnection
-            (new AsyncCallback(HandleConnection), pipeServer);
+                // Wait for a connection
+                pipeServer.BeginWaitForConnection
+                (new AsyncCallback(HandleConnection), pipeServer);
+            }
+            catch
+            {
+                logger.Warn("Pipeserver has failed to start!");
+            }
 
             //Hook into program terminating to start safe shutdown
             Application.Current.SessionEnding += Current_SessionEnding;
@@ -103,6 +113,7 @@ namespace MYTGS
             InitializeCalendarDB(dbSchool);
             InitializeTasksDB(dbSchool);
             InitializeCacheDB(dbSchool);
+            
 
 
             //Update audio drivers list
@@ -133,13 +144,10 @@ namespace MYTGS
 
             FF.OnLogin += FF_OnLogin;
             ClockWindow.BellTrigger += ClockWindow_BellTrigger;
-            // 10 minutes in milliseconds
-            TenTimer.Interval = TimeSpan.FromMinutes(10);
-            TenTimer.Tick += TenTimer_Tick;
-
-            UpdateTimer.Interval = TimeSpan.FromHours(6);
-            UpdateTimer.Tick += UpdateTimer_Tick;
             InitializeComponent(); //Initialize WPF Window and objects
+            //Initalize Timers
+            TenTimer = new Timer(new TimerCallback(TenTimer_Tick), null, 100, (int)(10 *60000) );
+            UpdateTimer = new Timer(new TimerCallback(UpdateTimer_Tick), null, 100, 3 *3600000);
 
             PlacementModeCombo.SelectedIndex = ClockPlacementMode;
             HorizontalOffsetTextbox.Text = XOffset;
@@ -204,15 +212,12 @@ namespace MYTGS
             nIcon.ContextMenu = menu;
             nIcon.Icon = Properties.Resources.CustomIcon;
             nIcon.DoubleClick += HomeMenu_Click;
-            nIcon.MouseDown += NIcon_MouseDown;
+            nIcon.MouseClick += NIcon_MouseDown;
             nIcon.Visible = true;
-
 
             FF.OnSiteConnect += SiteConnected;
             FF.SchoolCheckAsync("MYTGS");
 
-            TenTimer.Start();
-            UpdateTimer.Start();
             using (RegistryKey key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true))
             {
                 if (System.Deployment.Application.ApplicationDeployment.IsNetworkDeployed && !IsApplicationInStartup())
@@ -432,7 +437,7 @@ namespace MYTGS
                 System.DirectoryServices.ActiveDirectory.Domain.GetComputerDomain();
                 return true;
             }
-            catch(Exception e)
+            catch (Exception)
             {
                 //Do nothing
             }
@@ -501,7 +506,7 @@ namespace MYTGS
             });
         }
 
-        private void UpdateTimer_Tick(object sender, EventArgs e)
+        private void UpdateTimer_Tick(object state)
         {
             Dispatcher.Invoke(() =>
             {
@@ -513,7 +518,16 @@ namespace MYTGS
         {
             if (e.Button == System.Windows.Forms.MouseButtons.Left)
             {
-                ClockWindow.ShowTable = !ClockWindow.ShowTable;
+                Task.Delay(100).ContinueWith(_ =>
+                {
+                    Dispatcher.Invoke(() =>
+                    {
+                        if (NotifyIconDoubleClick == false)
+                        {
+                            ClockWindow.ShowTable = !ClockWindow.ShowTable;
+                        }
+                    });
+                });
             }
         }
 
@@ -575,6 +589,11 @@ namespace MYTGS
                         Show();
                         Activate();
                     });
+                    byte[] buff = new byte[10];
+                    buff[2] = 0xAF;
+                    buff[5] = 0x10;
+                    buff[3] = 0x9F;
+                    pipeServer.Write(buff, 0, 10); // send reply
                 }
 
                 // Kill original sever and create new wait server
@@ -594,7 +613,7 @@ namespace MYTGS
         }
 
         DateTime LastTenTimerCheck = DateTime.Now;
-        private void TenTimer_Tick(object sender, EventArgs e)
+        private void TenTimer_Tick(object state)
         {
             //Check for changes
             //UpdateTasks(TasksPath);
@@ -612,7 +631,10 @@ namespace MYTGS
                 //Property change event so ui will react
                 if (PropertyChanged != null)
                 {
-                    GenerateTwoWeekTimetable();
+                    Dispatcher.Invoke(() =>
+                    {
+                        GenerateTwoWeekTimetable();
+                    });
                     PropertyChanged(this, new PropertyChangedEventArgs("CurrentTimetableDay"));
                 }
             }
@@ -630,7 +652,8 @@ namespace MYTGS
                     DBInsertOrReplace(dbSchool, Tasks);
                 }
 
-                if (DateTime.Now.DayOfWeek != DayOfWeek.Saturday && DateTime.Now.DayOfWeek != DayOfWeek.Sunday && LastEPR.Date.Day < DateTime.Now.Day && LastEPR.Date.Month < DateTime.Now.Month && LastEPR.Date.Year < DateTime.Now.Year)
+                //Check if day has changed
+                if ((LastEPR.Date - DateTime.Now).TotalDays >= 1)
                 {
                     try
                     {
@@ -641,6 +664,10 @@ namespace MYTGS
                             LastEPR = EPRHandler.ProcessEPR(EPRstr);
                             UpdateFirstDay(LastEPR.Date, LastEPR.Day);
                             ClockWindow.SetSchedule(EPRCheck(LastEPR, ClockWindow.Schedule, true));
+                        }
+                        else
+                        {
+                            logger.Warn("EPR failed to get response trying again in 10 minutes");
                         }
                     }
                     catch
@@ -657,16 +684,20 @@ namespace MYTGS
                 }
                 else if (EPRWait > 3)
                 {
-                    EPRWait = 0;
                     try
                     {
                         string EPRstr = FF.EPR();
                         if (EPRstr != null)
                         {
+                            EPRWait = 0;
                             EPRstring = EPRstr;
                             LastEPR = EPRHandler.ProcessEPR(EPRstr);
                             UpdateFirstDay(LastEPR.Date, LastEPR.Day);
                             ClockWindow.SetSchedule(EPRCheck(LastEPR, ClockWindow.Schedule, false));
+                        }
+                        else
+                        {
+                            logger.Warn("EPR failed to get response trying again in 10 minutes");
                         }
                     }
                     catch
@@ -708,7 +739,10 @@ namespace MYTGS
                     {
                         PlannerDate = DateTime.Now;
                     }
-                    GeneratePlanner(PlannerDate);
+
+                    Dispatcher.Invoke(() => {
+                        GeneratePlanner(PlannerDate);
+                    });
 
 
                     List<TimetablePeriod> todayPeriods = Timetablehandler.ProcessForUse(DBGetDayEvents(dbSchool, DateTime.Now), DateTime.UtcNow, IsTodayEarlyFinish(dbSchool), true, false);
@@ -716,9 +750,12 @@ namespace MYTGS
                     ClockWindow.SetSchedule(todayPeriods);
 
                 }
+
             }
             else
             {
+                //Only executed if its running in offline mode. No point trying to connect since all urls will fail
+
                 List<TimetablePeriod> todayPeriods = Timetablehandler.ProcessForUse(DBGetDayEvents(dbSchool, DateTime.Now), DateTime.UtcNow, IsTodayEarlyFinish(dbSchool), true, false);
                 todayPeriods = EPRCheck(LastEPR, todayPeriods, true);
                 ClockWindow.SetSchedule(todayPeriods);
@@ -727,7 +764,7 @@ namespace MYTGS
 
         private List<TimetablePeriod> EPRCheck(EPRcollection epr, List<TimetablePeriod> periods, bool Notify = true)
         {
-            DateTime EPRlocalDate = epr.Date.ToLocalTime();
+            DateTime EPRlocalDate = epr.Date;
 
             if (Notify && epr.Errors)
             {
@@ -738,9 +775,11 @@ namespace MYTGS
             {
                 EPRChanges.Clear();
             });
-            for (int i = 0; i < periods.Count; i++)
+
+
+            if (EPRlocalDate.Day == DateTime.Now.Day && EPRlocalDate.Month == DateTime.Now.Month && EPRlocalDate.Year == DateTime.Now.Year)
             {
-                if (EPRlocalDate.Day == DateTime.Now.Day && EPRlocalDate.Month == DateTime.Now.Month && EPRlocalDate.Year == DateTime.Now.Year)
+                for (int i = 0; i < periods.Count; i++)
                 {
                     //Room change
                     if (LastEPR.Changes.ContainsKey(periods[i].Classcode + "-" + periods[i].period))
@@ -748,6 +787,8 @@ namespace MYTGS
                         TimetablePeriod item = periods[i];
                         item.Roomcode = LastEPR.Changes[item.Classcode + "-" + periods[i].period].Roomcode;
                         item.Teacher = LastEPR.Changes[item.Classcode + "-" + periods[i].period].Teacher;
+                        item.TeacherChange = LastEPR.Changes[item.Classcode + "-" + periods[i].period].TeacherChange;
+                        item.RoomChange = LastEPR.Changes[item.Classcode + "-" + periods[i].period].RoomChange;
                         periods[i] = item;
                         Dispatcher.Invoke(() =>
                         {
@@ -920,6 +961,12 @@ namespace MYTGS
 
         private void HomeMenu_Click(object sender, EventArgs e)
         {
+            NotifyIconDoubleClick = true;
+            Task.Delay(220).ContinueWith(_ =>
+            {
+                NotifyIconDoubleClick = false;
+            });
+
             Dispatcher.Invoke(() =>
             {
                 ShowInTaskbar = true;
@@ -978,7 +1025,12 @@ namespace MYTGS
                 Hide();
                 return;
             }
+            e.Cancel = false;
 
+            mutex?.Close();
+            LocalapiWebserver?.Dispose();
+            TenTimer?.Dispose();
+            UpdateTimer?.Dispose();
             outputAudioDevice?.Dispose();
             dbSchool.Close();
             settings.Close();
@@ -1206,7 +1258,7 @@ namespace MYTGS
         {
             UserEarlyFinishEvent(dbSchool, earlyfinishcheck.IsChecked == true);
             CheckForEarlyFinishes(dbSchool);
-            List<TimetablePeriod> todayPeriods = Timetablehandler.ProcessForUse(DBGetDayEvents(dbSchool, DateTime.Now), DateTime.UtcNow, IsTodayEarlyFinish(dbSchool), IsEventsUptoDate(4), false);
+            List<TimetablePeriod> todayPeriods = EPRCheck(LastEPR, Timetablehandler.ProcessForUse(DBGetDayEvents(dbSchool, DateTime.Now), DateTime.UtcNow, IsTodayEarlyFinish(dbSchool), IsEventsUptoDate(4), false));
             ClockWindow.SetSchedule(todayPeriods);
         }
 
@@ -1422,6 +1474,37 @@ namespace MYTGS
             TablePreference = TablePreferenceComboBox.SelectedIndex == 1;
 
             SetClockPosition(XOffset, YOffset, ScreenPreference, ClockPlacementMode);
+        }
+
+        private void CORSADD_Click(object sender, RoutedEventArgs e)
+        {
+            if (apiCorsOrigins.Contains(CORSTextbox.Text.ToLower().Trim()) == false)
+            {
+                apiCorsOrigins.Add(CORSTextbox.Text.ToLower().Trim());
+                if (enableLocalApi)
+                {
+                    initializeLocalApi((ApiEnableOpenNetwork ? "http://+:" : "http://localhost:") + ApiPort, String.Join(",", ApiCorsOrigins));
+                }
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("ApiCorsOrigins"));
+                CORSListView.Items.Refresh();
+                settings.SaveSettings("ApiCorsOrigins", JsonConvert.SerializeObject(ApiCorsOrigins));
+                CORSTextbox.Text = "";
+            }
+        }
+
+        private void CORSRemove_Click(object sender, RoutedEventArgs e)
+        {
+            if (CORSListView.SelectedIndex != -1 && CORSListView.SelectedItem is string)
+            {
+                apiCorsOrigins.Remove((string)CORSListView.SelectedItem);
+                if (enableLocalApi)
+                {
+                    initializeLocalApi((ApiEnableOpenNetwork ? "http://+:" : "http://localhost:") + ApiPort, String.Join(",", ApiCorsOrigins));
+                }
+                CORSListView.Items.Refresh();
+                settings.SaveSettings("ApiCorsOrigins", JsonConvert.SerializeObject(ApiCorsOrigins));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("ApiCorsOrigins"));
+            }
         }
     }
 }

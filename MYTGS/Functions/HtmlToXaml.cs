@@ -248,7 +248,7 @@ namespace MYTGS
         {
             while (Parent != Child)
             {
-                if(Child.Name == "b")
+                if(Child.Name == "b" || (Child.Attributes["style"] != null && Child.Attributes["style"].Value.Contains("font-weight: bold;")))
                 {
                     return true;
                 }

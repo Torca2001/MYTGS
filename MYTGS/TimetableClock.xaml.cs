@@ -4,17 +4,11 @@ using System.ComponentModel;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Interop;
-using System.Windows.Media;
 using System.Windows.Media.Animation;
-using System.Windows.Media.Imaging;
-using System.Windows.Shapes;
 using System.Windows.Threading;
 
 namespace MYTGS
@@ -68,6 +62,17 @@ namespace MYTGS
             }
         }
         private bool hideOnFinish { get; set; }
+
+        public bool ClassChanges { get => classChanges; 
+            set
+            {
+                classChanges = value;
+                if (PropertyChanged != null)
+                    PropertyChanged(this, new PropertyChangedEventArgs("ClassChanges"));
+            }
+        }
+
+        private bool classChanges { get; set; }
         public bool TablePositionPreference
         {
             get => tablePositionPreference;
@@ -245,6 +250,16 @@ namespace MYTGS
         {
             //Order list by start time of the periods
             Schedule = periods.OrderBy(o => o.Start).ToList();
+            ClassChanges = false;
+            for (int i = 0; i < Schedule.Count; i++)
+            {
+                if (Schedule[i].Changes)
+                {
+                    ClassChanges = true;
+                    break;
+                }
+            }
+
             if (tablewindow != null || tablewindow.IsLoaded == false)
             {
                 tablewindow.Schedule = Schedule;
@@ -377,7 +392,7 @@ namespace MYTGS
                     LabelRoom = Schedule[i].Roomcode;
                     break;
                 }
-                else if (Schedule[i].Start > RN)
+                else if (Schedule[i].Start > RN && Schedule[i].Start < Schedule[i].End)
                 {
                     IsGotoPeriod = false;
                     Countdown = Schedule[i].Start - RN;
@@ -649,6 +664,11 @@ namespace MYTGS
         private void Window_LocationChanged(object sender, EventArgs e)
         {
 
+        }
+
+        private void Window_Closing(object sender, CancelEventArgs e)
+        {
+            tablewindow?.Close();
         }
 
         public static bool IsForegroundFullScreen(System.Windows.Forms.Screen screen, bool SameScreen = false)

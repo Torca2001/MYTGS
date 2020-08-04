@@ -4,17 +4,11 @@ using System.ComponentModel;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Interop;
-using System.Windows.Media;
 using System.Windows.Media.Animation;
-using System.Windows.Media.Imaging;
-using System.Windows.Shapes;
 using System.Windows.Threading;
 
 namespace MYTGS
@@ -46,6 +40,10 @@ namespace MYTGS
         public string CurrentTimetableDay { get => "Day " + currentTimetableDay; }
         private int currentTimetableDay { get; set; }
         private DateTime LastDay = DateTime.Now;
+        public event EventHandler BellTrigger;
+        private bool BellFlag = false;
+        private int Lastperiod = 20; //Higher than possible period to prevent startup triggering bell
+        private bool LastPeriodGoto = false;
 
         public bool FadeOnHover = false;
         public bool HideOnFullscreen = false;
@@ -64,6 +62,26 @@ namespace MYTGS
             }
         }
         private bool hideOnFinish { get; set; }
+
+        public bool ClassChanges { get => classChanges; 
+            set
+            {
+                classChanges = value;
+                if (PropertyChanged != null)
+                    PropertyChanged(this, new PropertyChangedEventArgs("ClassChanges"));
+            }
+        }
+
+        private bool classChanges { get; set; }
+        public bool TablePositionPreference
+        {
+            get => tablePositionPreference;
+            set
+            {
+                tablePositionPreference = value;
+            }
+        }
+        private bool tablePositionPreference { get; set; }
         private bool Hiding = true;
         public int Offset { get; set; }
 
@@ -111,6 +129,75 @@ namespace MYTGS
                 showTable = value;
                 if (PropertyChanged != null)
                     PropertyChanged(this, new PropertyChangedEventArgs("ShowTable"));
+
+                if (value)
+                {
+                    if (tablewindow == null || tablewindow.IsLoaded == false)
+                        tablewindow = new TableWindow();
+
+                    Point tmp = new Point(Left, Top-tablewindow.Height);
+                    Point Bottmp = new Point(Left + tablewindow.Width, Top);
+
+                    int topcheck = CornersVisible(tmp,Bottmp);
+                    Bottmp.Y = Top + Height + tablewindow.Height;
+                    tmp.Y = Top + Height;
+                    int botcheck = CornersVisible(tmp, Bottmp);
+                    if (topcheck == botcheck)
+                    {
+                        if (TablePositionPreference)
+                        {
+                            botcheck = 10;
+                            topcheck = 1;
+                        }
+                        else
+                        {
+                            botcheck = 1;
+                            topcheck = 10;
+                        }
+                    }
+
+                    if (topcheck>botcheck)
+                    {
+                        tablewindow.Top = Top - tablewindow.Height;
+                        tablewindow.Left = Left;
+                    }
+                    else
+                    {
+                        tablewindow.Top = Top + Height;
+                        tablewindow.Left = Left;
+                    }
+                    tablewindow.Schedule = Schedule;
+                    tablewindow.Show();
+                    tablewindow.Activate();
+
+                }
+                else
+                {
+                    tablewindow?.Hide();
+                }
+            }
+        }
+
+        private TableWindow tablewindow = new TableWindow();
+
+        //Event to fire when a period changed for bell
+        protected virtual void OnBell(EventArgs e)
+        {
+            EventHandler handler = BellTrigger;
+            handler?.BeginInvoke(this, e, EndAsyncEvent, null);
+        }
+
+        protected virtual void EndAsyncEvent(IAsyncResult iar)
+        {
+            var ar = (System.Runtime.Remoting.Messaging.AsyncResult)iar;
+            var invokedMethod = (EventHandler)ar.AsyncDelegate;
+            try
+            {
+                invokedMethod.EndInvoke(iar);
+            }
+            catch
+            {
+                //do nothing
             }
         }
 
@@ -135,6 +222,7 @@ namespace MYTGS
 
         public TimetableClock()
         {
+            tablewindow.Loaded += Tablewindow_Loaded;
             Schedule = new List<TimetablePeriod>();
             InitializeComponent();
             DefClock.MouseHoveringHide += new EventHandler(Grid_MouseEnter);
@@ -153,16 +241,78 @@ namespace MYTGS
             SecTimer.Start();
         }
 
+        private void Tablewindow_Loaded(object sender, RoutedEventArgs e)
+        {
+            tablewindow.Schedule = Schedule;
+        }
+
         public void SetSchedule(List<TimetablePeriod> periods)
         {
             //Order list by start time of the periods
             Schedule = periods.OrderBy(o => o.Start).ToList();
+            ClassChanges = false;
+            for (int i = 0; i < Schedule.Count; i++)
+            {
+                if (Schedule[i].Changes)
+                {
+                    ClassChanges = true;
+                    break;
+                }
+            }
+
+            if (tablewindow != null || tablewindow.IsLoaded == false)
+            {
+                tablewindow.Schedule = Schedule;
+            }
+            else
+            {
+                tablewindow = new TableWindow();
+                tablewindow.Schedule = Schedule;
+            }
+        }
+
+        //Returns the number of times the corner is visible on screens to compare
+        private int CornersVisible(Point pos, Point Botpos)
+        {
+            int count = 0;
+            var allscreens = System.Windows.Forms.Screen.AllScreens;
+            for (int i = 0; i < 4; i++)
+            {
+                Point tmp = pos;
+                switch (i)
+                {
+                    case 0:
+                        //Top left
+                        break;
+                    case 1:
+                        //Top Right
+                        tmp.X = Botpos.X;
+                        break;
+                    case 2:
+                        //Bottom Left
+                        tmp.Y = Botpos.Y;
+                        break;
+                    case 3:
+                        //Bottom Right
+                        tmp = Botpos;
+                        break;
+                }
+
+                //Check if corner is present 
+                for (int p = 0; p < allscreens.Length; p++)
+                {
+                    if (allscreens[p].Bounds.Contains((int)tmp.X, (int)tmp.Y))
+                        count++;
+                }
+            }
+            return count;
         }
         
         //Update timer
         private void SecTimer_Tick(object sender, EventArgs e)
         {
             bool ScheduleFinished = false;
+            bool IsGotoPeriod = false;
 
             //Check if the day has changed
             if (LastDay.ToShortDateString() != DateTime.Now.ToShortDateString())
@@ -171,25 +321,28 @@ namespace MYTGS
                 currentTimetableDay = CalculateTimetableDay(DateTime.Now);
                 PropertyChanged(this, new PropertyChangedEventArgs("CurrentTimetableDay"));
             }
-            
-            for (int i = 0;  i <= Schedule.Count; i++)
+
+            //Time to compare against
+            DateTime RN = DateTime.Now.AddSeconds(Offset);
+            int i = 0;
+            for (i = 0;  i <= Schedule.Count; i++)
             {
                 if (i == Schedule.Count)
                 {
+                    IsGotoPeriod = false;
                     Countdown = TimeSpan.Zero;
                     LabelDesc = "End";
                     LabelRoom = "";
                     ScheduleFinished = true;
                     break;
                 }
-
-
-                DateTime RN = DateTime.Now.AddSeconds(Offset);
                 if (Schedule[i].GotoPeriod)
                 {
+                    IsGotoPeriod = false;
                     DateTime GotoTime = Schedule[i].Start.AddMinutes(-5);
                     if (Timetablehandler.CompareInBetween(GotoTime, Schedule[i].Start, RN) && !(i!=0 && Schedule[i-1].Classcode == Schedule[i].Classcode))
                     {
+                        IsGotoPeriod = true;
                         Countdown = Schedule[i].Start - RN;
                         LabelDesc = "Go to " + AutoDesc(Schedule[i]);
                         LabelRoom = Schedule[i].Roomcode;
@@ -226,6 +379,7 @@ namespace MYTGS
                 }
                 else if (Timetablehandler.CompareInBetween(Schedule[i].Start, Schedule[i].End, RN))
                 {
+                    IsGotoPeriod = false;
                     if (CombineDoubles && i + 1 < Schedule.Count && Schedule[i].Classcode == Schedule[i + 1].Classcode)
                     {
                         Countdown = Schedule[i + 1].End - RN;
@@ -238,14 +392,43 @@ namespace MYTGS
                     LabelRoom = Schedule[i].Roomcode;
                     break;
                 }
-                else if (Schedule[i].Start > RN)
+                else if (Schedule[i].Start > RN && Schedule[i].Start < Schedule[i].End)
                 {
+                    IsGotoPeriod = false;
                     Countdown = Schedule[i].Start - RN;
                     LabelDesc = "Next " + AutoDesc(Schedule[i]);
                     LabelRoom = Schedule[i].Roomcode;
                     break;
                 }
             }
+
+            bool Belltrigger = false;
+            if (i < Schedule.Count)
+            {
+                if ((Schedule[i].Start - RN).TotalMilliseconds < 1000 && (Schedule[i].Start - RN).TotalMilliseconds > 0)
+                {
+                    IsGotoPeriod = true;
+                    Belltrigger = true;
+                }
+                else if (Schedule[i].End > Schedule[i].Start && (Schedule[i].End - RN).TotalMilliseconds < 1000 && (Schedule[i].End - RN).TotalMilliseconds > 0)
+                {
+                    Belltrigger = true;
+                }
+            }
+
+
+            //Bell check
+            if (Belltrigger)
+            {
+                BellFlag = true;
+            }
+            else if (BellFlag == true && (IsGotoPeriod != LastPeriodGoto || i > Lastperiod))
+            {
+                BellFlag = false;
+                OnBell(new EventArgs());
+            }
+            Lastperiod = i;
+            LastPeriodGoto = IsGotoPeriod;
 
             //Variables for auto hiding check
             bool IsFullscreenApp = false;
@@ -476,6 +659,16 @@ namespace MYTGS
         public static bool IsForegroundFullScreen()
         {
             return IsForegroundFullScreen(null);
+        }
+
+        private void Window_LocationChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void Window_Closing(object sender, CancelEventArgs e)
+        {
+            tablewindow?.Close();
         }
 
         public static bool IsForegroundFullScreen(System.Windows.Forms.Screen screen, bool SameScreen = false)

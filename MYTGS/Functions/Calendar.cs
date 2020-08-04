@@ -63,9 +63,10 @@ namespace MYTGS
                     }
                 }
             }
-            catch
+            catch(Exception e)
             {
                 logger.Warn("Unable to convert Calendar");
+                logger.Warn(e);
             }
         }
 
@@ -107,9 +108,11 @@ namespace MYTGS
             {
                 if (item.DtStart.DateTime.ToLocalTime().ToShortDateString() == DateTime.Now.ToShortDateString())
                 {
+                    TodayEarlyFinish = true;
                     return true;
                 }
             }
+            TodayEarlyFinish = false;
             return false;
         }
 

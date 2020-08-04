@@ -86,7 +86,10 @@ namespace MYTGS
                 {
                     tasklastFetch = new DateTime(2001, 7, 7);
                 }
-                tasklastFetch = JsonConvert.DeserializeObject<DateTime>(GetCache(CacheSaveLocation, "TaskLastFetch"));
+                else
+                {
+                    tasklastFetch = JsonConvert.DeserializeObject<DateTime>(GetCache(CacheSaveLocation, "TaskLastFetch"));
+                }
             }
             catch
             {

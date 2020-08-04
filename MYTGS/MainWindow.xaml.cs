@@ -15,12 +15,11 @@ using System.Windows.Input;
 using System.Net;
 using System.ComponentModel;
 using System.Text.RegularExpressions;
-using HtmlAgilityPack;
-using System.Windows.Media.Imaging;
 using System.IO.Pipes;
 using System.Collections.ObjectModel;
 using System.Threading;
 using SQLite;
+using NAudio.Wave;
 
 namespace MYTGS
 {
@@ -31,18 +30,24 @@ namespace MYTGS
     {
         private Logger logger = LogManager.GetCurrentClassLogger();
         //set to use only MYTGS firefly cloud 
+
+        public Mutex mutex = null;
         Firefly.Firefly FF { set; get; } = new Firefly.Firefly("MYTGS");
         public ObservableCollection<Firefly.FullTask> TaskSearch { get; set; } = new ObservableCollection<Firefly.FullTask>();
-        DispatcherTimer TenTimer = new DispatcherTimer();
-        DispatcherTimer UpdateTimer = new DispatcherTimer();
+        Timer TenTimer = null;
+        Timer UpdateTimer = null;
         public ObservableCollection<TimetablePeriod> EPRChanges { get; set; } = new ObservableCollection<TimetablePeriod>();
+        public List<DirectSoundDeviceInfo> AudioDevicesList { get; set; } = new List<DirectSoundDeviceInfo>();
         TimetableClock ClockWindow = new TimetableClock();
         DateTime LastDayCheck = DateTime.Now;
         DateTime PlannerDate = DateTime.Now;
         Thread SearchThread = null;
         int EPRWait = 0;
         bool PlannerCurrentDay = true;
+        bool NotifyIconDoubleClick = false;
         private bool IsFirstTime = false;
+        DirectSoundOut outputAudioDevice = new DirectSoundOut();
+        public bool TodayEarlyFinish { get; set; }
 
 
         public List<TimetablePeriod> ClockSchedule { get => ClockWindow.Schedule; }
@@ -54,6 +59,8 @@ namespace MYTGS
         bool safeclose = false;
         bool offlineMode = false;
         const string SchoolDBFile = "Trinity";
+        public int tmpScreen { get; set; } = 1;
+        
 
         //Get path to database
         SQLiteConnection dbSchool = null;
@@ -62,8 +69,10 @@ namespace MYTGS
 
         public MainWindow()
         {
+            logger.Info("Application Starting up");
             if (!Directory.Exists(Environment.ExpandEnvironmentVariables((string)Properties.Settings.Default["AppPath"])))
             {
+                logger.Info("Creating AppData Directory");
                 Directory.CreateDirectory(Environment.ExpandEnvironmentVariables((string)Properties.Settings.Default["AppPath"]));
             }
 
@@ -80,13 +89,20 @@ namespace MYTGS
 
             settings.Initalize();
 
-            //Initalize Pipe server for single instance only checking
-            NamedPipeServerStream pipeServer = new NamedPipeServerStream("MYTGS",
-               PipeDirection.InOut, 1, PipeTransmissionMode.Message, PipeOptions.Asynchronous);
+            try
+            {
+                //Initalize Pipe server for single instance only checking
+                NamedPipeServerStream pipeServer = new NamedPipeServerStream("MYTGS",
+                   PipeDirection.InOut, 1, PipeTransmissionMode.Message, PipeOptions.Asynchronous);
 
-            // Wait for a connection
-            pipeServer.BeginWaitForConnection
-            (new AsyncCallback(HandleConnection), pipeServer);
+                // Wait for a connection
+                pipeServer.BeginWaitForConnection
+                (new AsyncCallback(HandleConnection), pipeServer);
+            }
+            catch
+            {
+                logger.Warn("Pipeserver has failed to start!");
+            }
 
             //Hook into program terminating to start safe shutdown
             Application.Current.SessionEnding += Current_SessionEnding;
@@ -97,21 +113,58 @@ namespace MYTGS
             InitializeCalendarDB(dbSchool);
             InitializeTasksDB(dbSchool);
             InitializeCacheDB(dbSchool);
+            
+
+
+            //Update audio drivers list
+            UpdateAudioDeviceList();
 
 
             //Loads data about last time DB was updated
             LoadCache(dbSchool);
             LoadEventInfo(dbSchool);
             LoadSettings();
-            
-            FF.OnLogin += FF_OnLogin;
-            // 10 minutes in milliseconds
-            TenTimer.Interval = TimeSpan.FromMinutes(10);
-            TenTimer.Tick += TenTimer_Tick;
 
-            UpdateTimer.Interval = TimeSpan.FromHours(6);
-            UpdateTimer.Tick += UpdateTimer_Tick;
+            try
+            {
+                outputAudioDevice?.Dispose();
+                outputAudioDevice = new DirectSoundOut(new Guid(SelectedAudioDevice));
+            }
+            catch
+            {
+                //Link to default audio device
+                outputAudioDevice = new DirectSoundOut();
+            }
+
+            //Check to see if connected to domain or not
+            if (ConnectedToDomain())
+            {
+                DomainLastActive = DateTime.UtcNow;
+            }
+
+            FF.OnLogin += FF_OnLogin;
+            ClockWindow.BellTrigger += ClockWindow_BellTrigger;
             InitializeComponent(); //Initialize WPF Window and objects
+            //Initalize Timers
+            TenTimer = new Timer(new TimerCallback(TenTimer_Tick), null, 100, (int)(10 *60000) );
+            UpdateTimer = new Timer(new TimerCallback(UpdateTimer_Tick), null, 100, 3 *3600000);
+
+            PlacementModeCombo.SelectedIndex = ClockPlacementMode;
+            HorizontalOffsetTextbox.Text = XOffset;
+            VerticalOffsetTextbox.Text = YOffset;
+            if (TablePreference)
+            {
+                TablePreferenceComboBox.SelectedIndex = 1;
+            }
+
+            for (int i = 0; i < AudioDevicesList.Count; i++)
+            {
+                if (AudioDevicesList[i].Guid.ToString() == SelectedAudioDevice)
+                {
+                    BellAudioDeviceComboBox.SelectedIndex = i;
+                    break;
+                }
+            }
 
             eprbrowser.NavigateToString("<p>EPR Not Loaded </p>");
 
@@ -122,13 +175,12 @@ namespace MYTGS
             IsFirstTime = Firsttime;
 
             earlyfinishcheck.IsChecked = IsTodayEarlyFinish(dbSchool);
-
-            //test.Content = JsonConvert.SerializeObject(DateTime.Now.ToUniversalTime());
+            
             ClockWindow.Background = new SolidColorBrush(Color.FromArgb(0, 255, 255, 255));
             ClockWindow.Show();
-            ClockWindow.Left = System.Windows.SystemParameters.WorkArea.Width - ClockWindow.Width;
-            ClockWindow.Top = System.Windows.SystemParameters.WorkArea.Height - ClockWindow.Height;
-            
+            SetClockPosition(XOffset, YOffset, ScreenPreference, ClockPlacementMode);
+
+
             if (StartMinimized && !Firsttime)
             {
                 ShowInTaskbar = false;
@@ -160,15 +212,12 @@ namespace MYTGS
             nIcon.ContextMenu = menu;
             nIcon.Icon = Properties.Resources.CustomIcon;
             nIcon.DoubleClick += HomeMenu_Click;
-            nIcon.MouseDown += NIcon_MouseDown;
+            nIcon.MouseClick += NIcon_MouseDown;
             nIcon.Visible = true;
-            
 
             FF.OnSiteConnect += SiteConnected;
             FF.SchoolCheckAsync("MYTGS");
 
-            TenTimer.Start();
-            UpdateTimer.Start();
             using (RegistryKey key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true))
             {
                 if (System.Deployment.Application.ApplicationDeployment.IsNetworkDeployed && !IsApplicationInStartup())
@@ -182,12 +231,243 @@ namespace MYTGS
             }
             StartupCheckBox.IsChecked = IsApplicationInStartup();
             StartupCheckBox.Checked += StartupCheckBox_Checked;
+            
 
             UpdateCalendar(dbSchool);
             CheckForEarlyFinishes(dbSchool);
             TwoWeekTimetable = LocateTwoWeeks(FirstDayDate);
             GenerateTwoWeekTimetable();
             UpdateSearchResults();
+        }
+
+        //test bell button
+        private void Button_Click_6(object sender, RoutedEventArgs e)
+        {
+            float vol = VolumeCtrl / 100.0f;
+
+            byte[] bytes = Convert.FromBase64String(Bellwave);
+            using (var wave = new WaveChannel32(new Mp3FileReader(new MemoryStream(bytes)), vol, 0f))
+            {
+                outputAudioDevice.Init(wave);
+                outputAudioDevice.Play();
+
+                Thread.Sleep((int)wave.TotalTime.TotalMilliseconds);
+            }
+        }
+
+        private void SetClockPosition(string xstring, string ystring, int screenpref, int mode)
+        {
+            try
+            {
+            var allscreens = System.Windows.Forms.Screen.AllScreens;
+            if (allscreens.Length == 0)
+            {
+                ClockWindow.Top = 0;
+                ClockWindow.Left = 0;
+                return;
+            }
+
+            System.Drawing.Rectangle screenbounds = new System.Drawing.Rectangle();
+            if (screenpref == 0 || screenpref > allscreens.Length)
+            {
+                screenbounds = new System.Drawing.Rectangle(0, 0, (int)SystemParameters.WorkArea.Width, (int)SystemParameters.WorkArea.Height);
+            }
+            else
+            {
+                screenbounds = allscreens[screenpref - 1].WorkingArea;
+            }
+
+            xstring = xstring.Trim();
+            ystring = ystring.Trim();
+            double xdisplacement = 0;
+            double ydisplacement = 0;
+            if (xstring.EndsWith("%"))
+            {
+                double.TryParse(xstring.Substring(0, xstring.Length - 1), out xdisplacement);
+                xdisplacement = screenbounds.Width * xdisplacement / 100;
+            }
+            else
+            {
+                double.TryParse(xstring, out xdisplacement);
+            }
+
+            if (ystring.EndsWith("%"))
+            {
+                double.TryParse(ystring.Substring(0, ystring.Length - 1), out ydisplacement);
+                ydisplacement = screenbounds.Height * ydisplacement / 100;
+            }
+            else
+            {
+                double.TryParse(ystring, out ydisplacement);
+            }
+            
+
+            Point clockpos = new Point();
+            switch (mode)
+            {
+                case 1:
+                    clockpos.X = screenbounds.Right - xdisplacement - ClockWindow.Width;
+                    clockpos.Y = screenbounds.Top + ydisplacement;
+
+                    break;
+                case 2:
+                    clockpos.X = screenbounds.Left + xdisplacement;
+                    clockpos.Y = screenbounds.Bottom - ydisplacement-ClockWindow.Height;
+
+                    break;
+                case 3:
+                    clockpos.X = screenbounds.Left + xdisplacement;
+                    clockpos.Y = screenbounds.Top + ydisplacement;
+
+                    break;
+                case 4:
+                    clockpos.X = screenbounds.Left + ((screenbounds.Width-ClockWindow.Width)/2) + xdisplacement;
+                    clockpos.Y = screenbounds.Top + ((screenbounds.Height-ClockWindow.Height)/2) + ydisplacement;
+
+                    break;
+                case 5:
+                    clockpos.X = xdisplacement;
+                    clockpos.Y = ydisplacement;
+
+                    break;
+                default:
+                    clockpos.X = screenbounds.Right - xdisplacement - ClockWindow.Width;
+                    clockpos.Y = screenbounds.Bottom - ydisplacement - ClockWindow.Height;
+                    break;
+            }
+                
+            clockpos = ClampWindowPos(clockpos, ClockWindow.Width, ClockWindow.Height);
+                ClockWindow.Left = clockpos.X;
+            ClockWindow.Top = clockpos.Y;
+            }
+            catch(Exception e)
+            {
+                logger.Error(e, "unable to set clockwindow position");
+            }
+        }
+
+        //Clamp window location to closest Screen preventing it from going off
+        private Point ClampWindowPos(Point windowlocation, double width, double height)
+        {
+            //Find closest screen
+            var res = System.Windows.Forms.Screen.AllScreens;
+            //No screens? then how can this even be determined
+            //Returns the number of times the corner is visible on screens to compare
+
+            if (res.Length == 0)
+            {
+                return windowlocation;
+            }
+            
+            int close = 0;
+            double closeness = double.PositiveInfinity;
+
+            bool TopLeftCorner = false;
+            bool TopRightCorner = false;
+            bool BottomLeftCorner = false;
+            bool BottomRightCorner = false;
+
+            for (int i = 0; i < res.Length; i++)
+            {
+                double xpos = res[i].Bounds.Left - windowlocation.X + ((res[i].Bounds.Width - width) / 2);
+                double ypos = res[i].Bounds.Top - windowlocation.Y + ((res[i].Bounds.Height - height) / 2);
+                double dis = xpos * xpos + ypos * ypos;
+                if (dis < closeness)
+                {
+                    closeness = dis;
+                    close = i;
+                }
+
+
+                //Corner checking
+                if (TopLeftCorner == false && res[i].Bounds.Contains((int)windowlocation.X, (int)windowlocation.Y))
+                {
+                    TopLeftCorner = true;
+                }
+
+                if (TopRightCorner == false && res[i].Bounds.Contains((int)(windowlocation.X + width), (int)windowlocation.Y))
+                {
+                    TopRightCorner = true;
+                }
+
+                if (BottomLeftCorner == false && res[i].Bounds.Contains((int)windowlocation.X, (int)(windowlocation.Y + height)))
+                {
+                    BottomLeftCorner = true;
+                }
+
+                if (BottomRightCorner == false && res[i].Bounds.Contains((int)(windowlocation.X + width), (int)(windowlocation.Y + height)))
+                {
+                    BottomRightCorner = true;
+                }
+            }
+
+            //All corners present on a screen
+            if (TopLeftCorner && TopRightCorner && BottomLeftCorner && BottomRightCorner)
+            {
+                return windowlocation;
+            }
+
+            //Clamp to screen position
+            if (windowlocation.Y < res[close].Bounds.Top)
+            {
+                windowlocation.Y = res[close].Bounds.Top;
+            }
+            else if (windowlocation.Y+height > res[close].Bounds.Bottom)
+            {
+                windowlocation.Y = res[close].Bounds.Bottom - height;
+            }
+
+            if (windowlocation.X < res[close].Bounds.Left)
+            {
+                windowlocation.X = res[close].Bounds.Left;
+            }
+            else if (windowlocation.X + width > res[close].Bounds.Right)
+            {
+                windowlocation.X = res[close].Bounds.Right - width;
+            }
+
+            return windowlocation;
+
+        }
+
+        private bool ConnectedToDomain()
+        {
+            try
+            {
+                System.DirectoryServices.ActiveDirectory.Domain.GetComputerDomain();
+                return true;
+            }
+            catch (Exception)
+            {
+                //Do nothing
+            }
+
+            return false;
+        }
+
+        private void ClockWindow_BellTrigger(object sender, EventArgs e)
+        {
+            //Check to see if connected to domain or not
+            if (ConnectedToDomain())
+            {
+                DomainLastActive = DateTime.UtcNow;
+            }
+
+
+            //Only run bell if domain wasn't connected to in the last 10 minutes
+            if (EnableBell && (DateTime.UtcNow-DomainLastActive).TotalMinutes >= 10)
+            {
+                float vol = VolumeCtrl / 100.0f;
+
+                byte[] bytes = Convert.FromBase64String(Bellwave);
+                using (var wave = new WaveChannel32(new Mp3FileReader(new MemoryStream(bytes)), vol, 0f))
+                {
+                    outputAudioDevice.Init(wave);
+                    outputAudioDevice.Play();
+
+                    Thread.Sleep((int)wave.TotalTime.TotalMilliseconds);
+                }
+            }
         }
 
         private void SiteConnected(object sender, EventArgs e)
@@ -226,7 +506,7 @@ namespace MYTGS
             });
         }
 
-        private void UpdateTimer_Tick(object sender, EventArgs e)
+        private void UpdateTimer_Tick(object state)
         {
             Dispatcher.Invoke(() =>
             {
@@ -238,7 +518,16 @@ namespace MYTGS
         {
             if (e.Button == System.Windows.Forms.MouseButtons.Left)
             {
-                ClockWindow.ShowTable = !ClockWindow.ShowTable;
+                Task.Delay(100).ContinueWith(_ =>
+                {
+                    Dispatcher.Invoke(() =>
+                    {
+                        if (NotifyIconDoubleClick == false)
+                        {
+                            ClockWindow.ShowTable = !ClockWindow.ShowTable;
+                        }
+                    });
+                });
             }
         }
 
@@ -300,6 +589,11 @@ namespace MYTGS
                         Show();
                         Activate();
                     });
+                    byte[] buff = new byte[10];
+                    buff[2] = 0xAF;
+                    buff[5] = 0x10;
+                    buff[3] = 0x9F;
+                    pipeServer.Write(buff, 0, 10); // send reply
                 }
 
                 // Kill original sever and create new wait server
@@ -318,40 +612,17 @@ namespace MYTGS
             }
         }
 
-        //private void LoadCachedTasks()
-        //{
-        //    logger.Info("Loading Local tasks");
-        //    if (Directory.Exists(TasksPath))
-        //    {
-        //        string[] TaskIDs = Directory.GetDirectories(TasksPath);
-        //        TaskIDs.Reverse();
-        //        int loadedtasks = 0;
-        //        foreach (string TaskID in TaskIDs)
-        //        {
-        //            try
-        //            {
-        //                if (File.Exists(TaskID + "\\Task.json"))
-        //                {
-        //                    Firefly.FullTask tmp = JsonConvert.DeserializeObject<Firefly.FullTask>(File.ReadAllText(TaskID + "\\Task.json"));
-        //                    Tasks.Add(tmp.id, tmp);
-        //                    loadedtasks += 1;
-        //                }
-        //            }
-        //            catch
-        //            {
-        //                logger.Warn("Failed to load task - " + TaskID.Substring(TaskID.LastIndexOf("\\")));
-        //            }
-        //        }
-        //        logger.Info("Successfully loaded " + loadedtasks + " tasks");
-        //    }
-        //    Tasks = Tasks.OrderBy(p => p.Value.dueDate).Reverse().ToDictionary(k => k.Key, k => k.Value);
-        //}
-
         DateTime LastTenTimerCheck = DateTime.Now;
-        private void TenTimer_Tick(object sender, EventArgs e)
+        private void TenTimer_Tick(object state)
         {
             //Check for changes
             //UpdateTasks(TasksPath);
+
+            //Check to see if connected to domain or not
+            if (ConnectedToDomain())
+            {
+                DomainLastActive = DateTime.UtcNow;
+            }
 
             if (DateTime.Now.ToShortDateString() != LastTenTimerCheck.ToShortDateString())
             {
@@ -360,13 +631,17 @@ namespace MYTGS
                 //Property change event so ui will react
                 if (PropertyChanged != null)
                 {
-                    GenerateTwoWeekTimetable();
+                    Dispatcher.Invoke(() =>
+                    {
+                        GenerateTwoWeekTimetable();
+                    });
                     PropertyChanged(this, new PropertyChangedEventArgs("CurrentTimetableDay"));
                 }
             }
 
             if (offlineMode == false)
             {
+
                 UpdateCalendar(dbSchool);
                 CheckForEarlyFinishes(dbSchool);
                 
@@ -377,7 +652,8 @@ namespace MYTGS
                     DBInsertOrReplace(dbSchool, Tasks);
                 }
 
-                if (DateTime.Now.DayOfWeek != DayOfWeek.Saturday && DateTime.Now.DayOfWeek != DayOfWeek.Sunday && LastEPR.Date.Day < DateTime.Now.Day && LastEPR.Date.Month < DateTime.Now.Month && LastEPR.Date.Year < DateTime.Now.Year)
+                //Check if day has changed
+                if ((LastEPR.Date - DateTime.Now).TotalDays >= 1)
                 {
                     try
                     {
@@ -388,6 +664,10 @@ namespace MYTGS
                             LastEPR = EPRHandler.ProcessEPR(EPRstr);
                             UpdateFirstDay(LastEPR.Date, LastEPR.Day);
                             ClockWindow.SetSchedule(EPRCheck(LastEPR, ClockWindow.Schedule, true));
+                        }
+                        else
+                        {
+                            logger.Warn("EPR failed to get response trying again in 10 minutes");
                         }
                     }
                     catch
@@ -404,16 +684,20 @@ namespace MYTGS
                 }
                 else if (EPRWait > 3)
                 {
-                    EPRWait = 0;
                     try
                     {
                         string EPRstr = FF.EPR();
                         if (EPRstr != null)
                         {
+                            EPRWait = 0;
                             EPRstring = EPRstr;
                             LastEPR = EPRHandler.ProcessEPR(EPRstr);
                             UpdateFirstDay(LastEPR.Date, LastEPR.Day);
                             ClockWindow.SetSchedule(EPRCheck(LastEPR, ClockWindow.Schedule, false));
+                        }
+                        else
+                        {
+                            logger.Warn("EPR failed to get response trying again in 10 minutes");
                         }
                     }
                     catch
@@ -455,7 +739,10 @@ namespace MYTGS
                     {
                         PlannerDate = DateTime.Now;
                     }
-                    GeneratePlanner(PlannerDate);
+
+                    Dispatcher.Invoke(() => {
+                        GeneratePlanner(PlannerDate);
+                    });
 
 
                     List<TimetablePeriod> todayPeriods = Timetablehandler.ProcessForUse(DBGetDayEvents(dbSchool, DateTime.Now), DateTime.UtcNow, IsTodayEarlyFinish(dbSchool), true, false);
@@ -463,9 +750,12 @@ namespace MYTGS
                     ClockWindow.SetSchedule(todayPeriods);
 
                 }
+
             }
             else
             {
+                //Only executed if its running in offline mode. No point trying to connect since all urls will fail
+
                 List<TimetablePeriod> todayPeriods = Timetablehandler.ProcessForUse(DBGetDayEvents(dbSchool, DateTime.Now), DateTime.UtcNow, IsTodayEarlyFinish(dbSchool), true, false);
                 todayPeriods = EPRCheck(LastEPR, todayPeriods, true);
                 ClockWindow.SetSchedule(todayPeriods);
@@ -474,7 +764,7 @@ namespace MYTGS
 
         private List<TimetablePeriod> EPRCheck(EPRcollection epr, List<TimetablePeriod> periods, bool Notify = true)
         {
-            DateTime EPRlocalDate = epr.Date.ToLocalTime();
+            DateTime EPRlocalDate = epr.Date;
 
             if (Notify && epr.Errors)
             {
@@ -485,9 +775,11 @@ namespace MYTGS
             {
                 EPRChanges.Clear();
             });
-            for (int i = 0; i < periods.Count; i++)
+
+
+            if (EPRlocalDate.Day == DateTime.Now.Day && EPRlocalDate.Month == DateTime.Now.Month && EPRlocalDate.Year == DateTime.Now.Year)
             {
-                if (EPRlocalDate.Day == DateTime.Now.Day && EPRlocalDate.Month == DateTime.Now.Month && EPRlocalDate.Year == DateTime.Now.Year)
+                for (int i = 0; i < periods.Count; i++)
                 {
                     //Room change
                     if (LastEPR.Changes.ContainsKey(periods[i].Classcode + "-" + periods[i].period))
@@ -495,6 +787,8 @@ namespace MYTGS
                         TimetablePeriod item = periods[i];
                         item.Roomcode = LastEPR.Changes[item.Classcode + "-" + periods[i].period].Roomcode;
                         item.Teacher = LastEPR.Changes[item.Classcode + "-" + periods[i].period].Teacher;
+                        item.TeacherChange = LastEPR.Changes[item.Classcode + "-" + periods[i].period].TeacherChange;
+                        item.RoomChange = LastEPR.Changes[item.Classcode + "-" + periods[i].period].RoomChange;
                         periods[i] = item;
                         Dispatcher.Invoke(() =>
                         {
@@ -616,39 +910,6 @@ namespace MYTGS
             });
             //Environment.ExpandEnvironmentVariables((string)Properties.Settings.Default["TasksPath"])
         }
-
-        //private int[] UpdateTasks(string filepath)
-        //{
-        //    int[] AllIDs = FF.GetAllIds();
-        //    Array.Reverse(AllIDs); //Reverse Order of the IDs 
-        //    List<int> NewIDs = new List<int>();
-        //    foreach (int ID in AllIDs)
-        //    {
-        //        if (Tasks.ContainsKey(ID))
-        //        {
-        //            //Update the cached version
-        //            Firefly.Response[] tmpresps= FF.GetResponseForID(ID);
-        //            if (tmpresps == null)
-        //                continue;
-        //            Tasks[ID] = FF.UpdateResponses(Tasks[ID], tmpresps);
-        //            SaveTask(filepath + ID + @"\Task.json" ,Tasks[ID]);
-        //        }
-        //        else
-        //        {
-        //            NewIDs.Add(ID);
-        //        }
-        //    }
-
-        //    Firefly.FullTask[] tmp = FF.GetAllTasksByIds(NewIDs.ToArray());
-        //    foreach (Firefly.FullTask item in tmp)
-        //    {
-        //        Tasks.Add(item.id, item);
-        //        SaveTask(filepath + item.id + @"\Task.json", item);
-        //    }
-
-        //    //return newly added items
-        //    return NewIDs.ToArray();
-        //}
         
         //Registry edits that don't require admin
         public void AddApplicationToStartup()
@@ -700,6 +961,12 @@ namespace MYTGS
 
         private void HomeMenu_Click(object sender, EventArgs e)
         {
+            NotifyIconDoubleClick = true;
+            Task.Delay(220).ContinueWith(_ =>
+            {
+                NotifyIconDoubleClick = false;
+            });
+
             Dispatcher.Invoke(() =>
             {
                 ShowInTaskbar = true;
@@ -758,6 +1025,13 @@ namespace MYTGS
                 Hide();
                 return;
             }
+            e.Cancel = false;
+
+            mutex?.Close();
+            LocalapiWebserver?.Dispose();
+            TenTimer?.Dispose();
+            UpdateTimer?.Dispose();
+            outputAudioDevice?.Dispose();
             dbSchool.Close();
             settings.Close();
             ClockWindow?.Close();
@@ -967,6 +1241,7 @@ namespace MYTGS
 
         private void Hyperlink_RequestNavigate(object sender, System.Windows.Navigation.RequestNavigateEventArgs e)
         {
+            //Sanitize request, only want web requests to be processed
             if (e.Uri.AbsoluteUri.StartsWith("http://") || e.Uri.AbsoluteUri.StartsWith("https://"))
             {
                 System.Diagnostics.Process.Start(e.Uri.AbsoluteUri);
@@ -983,7 +1258,7 @@ namespace MYTGS
         {
             UserEarlyFinishEvent(dbSchool, earlyfinishcheck.IsChecked == true);
             CheckForEarlyFinishes(dbSchool);
-            List<TimetablePeriod> todayPeriods = Timetablehandler.ProcessForUse(DBGetDayEvents(dbSchool, DateTime.Now), DateTime.UtcNow, IsTodayEarlyFinish(dbSchool), IsEventsUptoDate(4), false);
+            List<TimetablePeriod> todayPeriods = EPRCheck(LastEPR, Timetablehandler.ProcessForUse(DBGetDayEvents(dbSchool, DateTime.Now), DateTime.UtcNow, IsTodayEarlyFinish(dbSchool), IsEventsUptoDate(4), false));
             ClockWindow.SetSchedule(todayPeriods);
         }
 
@@ -1084,6 +1359,151 @@ namespace MYTGS
             if (e.Key == Key.Enter)
             {
                 GotoTaskpage();
+            }
+        }
+
+        private void Button_Click_7(object sender, RoutedEventArgs e)
+        {
+            UpdateAudioDeviceList();
+        }
+
+        private void UpdateAudioDeviceList()
+        {
+            AudioDevicesList.Clear();
+            foreach(var device in DirectSoundOut.Devices)
+            {
+                if (device.Guid.ToString() == "00000000-0000-0000-0000-000000000000")
+                {
+                    var temp = device;
+                    temp.Description = "Default Audio Device";
+                    AudioDevicesList.Add(temp);
+                }
+                else
+                {
+                    AudioDevicesList.Add(device);
+                }
+            }
+
+            if (PropertyChanged != null)
+                PropertyChanged(this, new PropertyChangedEventArgs("AudioDevicesList"));
+
+
+
+        }
+
+        private void BellAudioDeviceComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (IsLoaded == false)
+                return;
+            
+            SelectedAudioDevice = ((DirectSoundDeviceInfo)((ComboBox)sender).SelectedItem).Guid.ToString();
+            try
+            {
+                outputAudioDevice?.Dispose();
+                outputAudioDevice = new DirectSoundOut(new Guid(SelectedAudioDevice));
+            }
+            catch
+            {
+                //Link to default audio device
+                outputAudioDevice = new DirectSoundOut();
+            }
+        }
+
+        private void Button_Click_8(object sender, RoutedEventArgs e)
+        {
+            if (tmpScreen >= 1)
+                tmpScreen--;
+
+            if (PropertyChanged != null)
+            {
+                PropertyChanged(this, new PropertyChangedEventArgs("tmpScreen"));
+            }
+        }
+
+        private void Button_Click_9(object sender, RoutedEventArgs e)
+        {
+            tmpScreen++;
+
+            if (PropertyChanged != null)
+            {
+                PropertyChanged(this, new PropertyChangedEventArgs("tmpScreen"));
+            }
+        }
+
+        private void OffsetTextbox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (sender is TextBox)
+            {
+                if (!IsLoaded && ((TextBox)sender).Text.Length == 0)
+                {
+                    ((TextBox)sender).Text = "0";
+                    ((TextBox)sender).BorderBrush = new SolidColorBrush(Color.FromArgb(0xFF, 0xAB, 0xAD, 0xB3));
+                }
+
+                if ((Regex.IsMatch(((TextBox)sender).Text, @"^(-)?[0-9]*(\.)?[0-9]*%$") && double.TryParse(((TextBox)sender).Text.Substring(0, ((TextBox)sender).Text.Length - 1), out double p)))
+                {
+                    ((TextBox)sender).BorderBrush = new SolidColorBrush(Color.FromArgb(0xFF, 0xAB, 0xAD, 0xB3));
+                }
+                else if (Regex.IsMatch(((TextBox)sender).Text, @"^(-)?[0-9]{1,20}$"))
+                {
+                    ((TextBox)sender).BorderBrush = new SolidColorBrush(Color.FromArgb(0xFF, 0xAB, 0xAD, 0xB3));
+                }
+                else
+                {
+                    ((TextBox)sender).BorderBrush = new SolidColorBrush(Color.FromArgb(0xFF, 0xFF, 0x00, 0x00));
+                }
+            }
+
+        }
+
+        private void IntTextbox_LostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+        {
+            if (((TextBox)sender).Text.Length == 0)
+            {
+                ((TextBox)sender).Text = "0";
+            }
+        }
+
+        //Apply changes to clock placement
+        private void Button_Click_10(object sender, RoutedEventArgs e)
+        {
+            XOffset = HorizontalOffsetTextbox.Text;
+            YOffset = VerticalOffsetTextbox.Text;
+            ClockPlacementMode = PlacementModeCombo.SelectedIndex;
+            ScreenPreference = tmpScreen;
+            TablePreference = TablePreferenceComboBox.SelectedIndex == 1;
+
+            SetClockPosition(XOffset, YOffset, ScreenPreference, ClockPlacementMode);
+        }
+
+        private void CORSADD_Click(object sender, RoutedEventArgs e)
+        {
+            if (apiCorsOrigins.Contains(CORSTextbox.Text.ToLower().Trim()) == false)
+            {
+                apiCorsOrigins.Add(CORSTextbox.Text.ToLower().Trim());
+                if (enableLocalApi)
+                {
+                    initializeLocalApi((ApiEnableOpenNetwork ? "http://+:" : "http://localhost:") + ApiPort, String.Join(",", ApiCorsOrigins));
+                }
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("ApiCorsOrigins"));
+                CORSListView.Items.Refresh();
+                settings.SaveSettings("ApiCorsOrigins", JsonConvert.SerializeObject(ApiCorsOrigins));
+                CORSTextbox.Text = "";
+            }
+        }
+
+        private void CORSRemove_Click(object sender, RoutedEventArgs e)
+        {
+            if (CORSListView.SelectedIndex != -1 && CORSListView.SelectedItem is string)
+            {
+                apiCorsOrigins.Remove((string)CORSListView.SelectedItem);
+                if (enableLocalApi)
+                {
+                    initializeLocalApi((ApiEnableOpenNetwork ? "http://+:" : "http://localhost:") + ApiPort, String.Join(",", ApiCorsOrigins));
+                }
+                CORSListView.Items.Refresh();
+                settings.SaveSettings("ApiCorsOrigins", JsonConvert.SerializeObject(ApiCorsOrigins));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("ApiCorsOrigins"));
             }
         }
     }

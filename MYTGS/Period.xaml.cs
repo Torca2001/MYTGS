@@ -48,7 +48,6 @@ namespace MYTGS
                 PeriodLabel.Visibility = Visibility.Collapsed;
             }
         }
-
     }
 
     public class MultiplyConverter : MarkupExtension, IValueConverter

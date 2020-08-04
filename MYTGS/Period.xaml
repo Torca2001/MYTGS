@@ -1,10 +1,11 @@
-﻿<UserControl x:Class="MYTGS.Period"
+﻿<UserControl x:Name="PeriodCtrl" x:Class="MYTGS.Period"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:MYTGS"
              mc:Ignorable="d" 
+             Foreground="White"
              d:DesignHeight="200" d:DesignWidth="200">
     <Grid ToolTip="{Binding Tooltip, TargetNullValue=''}" x:Name="GridBox" SizeChanged="Grid_SizeChanged">
         <Grid.RowDefinitions>
@@ -13,7 +14,7 @@
             <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
         <Viewbox Margin="2,0" StretchDirection="UpOnly" VerticalAlignment="Top" HorizontalAlignment="Left" MaxWidth="{Binding ActualWidth,  ElementName=DescriptionText,  Converter={local:MultiplyConverter Multiplier=1.4}}" >
-            <TextBlock x:Name="DescriptionText"  TextWrapping="WrapWithOverflow" Text="{Binding Description, TargetNullValue=''}" Foreground="White" MaxWidth="{Binding ElementName=GridBox, Path=ActualWidth}"/>
+            <TextBlock x:Name="DescriptionText"  TextWrapping="WrapWithOverflow" Text="{Binding Description, TargetNullValue=''}" MaxWidth="{Binding ElementName=GridBox, Path=ActualWidth}"/>
         </Viewbox>
 
         <Grid Grid.Row="2" Margin="0" MaxHeight="30">
@@ -24,10 +25,10 @@
             </Grid.ColumnDefinitions>
 
             <Viewbox Grid.Column="0" Margin="2,2,0,0" StretchDirection="DownOnly" HorizontalAlignment="Left">
-                <Label Content="{Binding Roomcode, TargetNullValue=''}" Foreground="White" Padding="0" FontSize="{Binding RelativeSource={RelativeSource Mode=FindAncestor, AncestorType={x:Type local:Period}}, Path=SecondaryFontSize}"/>
+                <Label Content="{Binding Roomcode, TargetNullValue=''}" Foreground="{Binding Foreground, ElementName=PeriodCtrl}" Padding="0" FontSize="{Binding RelativeSource={RelativeSource Mode=FindAncestor, AncestorType={x:Type local:Period}}, Path=SecondaryFontSize}"/>
             </Viewbox>
             <Viewbox  Grid.Column="2" Margin="0,2,2,0" StretchDirection="DownOnly" HorizontalAlignment="Right" >
-                <Label Content="{Binding Classcode, TargetNullValue=''}" Foreground="White" Padding="0" FontSize="{Binding RelativeSource={RelativeSource Mode=FindAncestor, AncestorType={x:Type local:Period}}, Path=SecondaryFontSize}"/>
+                <Label Content="{Binding Classcode, TargetNullValue=''}" Padding="0" Foreground="{Binding Foreground, ElementName=PeriodCtrl}" FontSize="{Binding RelativeSource={RelativeSource Mode=FindAncestor, AncestorType={x:Type local:Period}}, Path=SecondaryFontSize}"/>
             </Viewbox>
         </Grid>
 
@@ -39,10 +40,10 @@
                 <ColumnDefinition Width="auto"/>
             </Grid.ColumnDefinitions>
             <Viewbox Grid.Column="0" Margin="2,0,0,0" StretchDirection="DownOnly" HorizontalAlignment="Left">
-                <Label x:Name="TeacherLabel"  Content="{Binding Teacher, TargetNullValue=''}" Visibility="Collapsed" Foreground="White" Padding="0" FontSize="{Binding RelativeSource={RelativeSource Mode=FindAncestor, AncestorType={x:Type local:Period}}, Path=SecondaryFontSize}"/>
+                <Label x:Name="TeacherLabel"  Content="{Binding Teacher, TargetNullValue=''}" Foreground="{Binding Foreground, ElementName=PeriodCtrl}" Visibility="Collapsed" Padding="0" FontSize="{Binding RelativeSource={RelativeSource Mode=FindAncestor, AncestorType={x:Type local:Period}}, Path=SecondaryFontSize}"/>
             </Viewbox>
             <Viewbox Grid.Column="2"  Margin="0,0,2,0" StretchDirection="DownOnly" HorizontalAlignment="Right">
-                <Label x:Name="PeriodLabel"  Content="{Binding period, TargetNullValue=''}" VerticalAlignment="Bottom" Visibility="Collapsed" Foreground="White" Padding="0" FontSize="{Binding RelativeSource={RelativeSource Mode=FindAncestor, AncestorType={x:Type local:Period}}, Path=SecondaryFontSize}"/>
+                <Label x:Name="PeriodLabel"  Content="{Binding period, TargetNullValue=''}" Foreground="{Binding Foreground, ElementName=PeriodCtrl}" VerticalAlignment="Bottom" Visibility="Collapsed" Padding="0" FontSize="{Binding RelativeSource={RelativeSource Mode=FindAncestor, AncestorType={x:Type local:Period}}, Path=SecondaryFontSize}"/>
             </Viewbox>
         </Grid>
 

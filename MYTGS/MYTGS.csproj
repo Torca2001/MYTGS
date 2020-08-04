@@ -17,7 +17,7 @@
     <IsWebBootstrapper>true</IsWebBootstrapper>
     <NuGetPackageImportStamp>
     </NuGetPackageImportStamp>
-    <PublishUrl>E:\Torca\Documents\Dev\App\</PublishUrl>
+    <PublishUrl>C:\Users\Torca\Documents\Dev\App\</PublishUrl>
     <Install>true</Install>
     <InstallFrom>Web</InstallFrom>
     <UpdateEnabled>true</UpdateEnabled>
@@ -33,10 +33,11 @@
     <ProductName>MYTGS</ProductName>
     <PublisherName>Torca</PublisherName>
     <SuiteName>MYTGS</SuiteName>
-    <MinimumRequiredVersion>0.0.1.10</MinimumRequiredVersion>
+    <MinimumRequiredVersion>0.0.1.18</MinimumRequiredVersion>
     <WebPage>publish.htm</WebPage>
-    <ApplicationRevision>10</ApplicationRevision>
-    <ApplicationVersion>0.0.1.10</ApplicationVersion>
+    <OpenBrowserOnPublish>false</OpenBrowserOnPublish>
+    <ApplicationRevision>19</ApplicationRevision>
+    <ApplicationVersion>0.0.1.19</ApplicationVersion>
     <UseApplicationTrust>true</UseApplicationTrust>
     <CreateDesktopShortcut>true</CreateDesktopShortcut>
     <PublishWizardCompleted>true</PublishWizardCompleted>
@@ -93,17 +94,23 @@
     <AssemblyOriginatorKeyFile>MYTGS_TemporaryKey.pfx</AssemblyOriginatorKeyFile>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="FontAwesome5, Version=2.0.0.0, Culture=neutral, PublicKeyToken=9cfaf01297a008f8, processorArchitecture=MSIL">
-      <HintPath>..\packages\FontAwesome5.2.0.0\lib\net40\FontAwesome5.dll</HintPath>
+    <Reference Include="EmbedIO, Version=3.4.3.0, Culture=neutral, PublicKeyToken=5e5f048b6e04267e, processorArchitecture=MSIL">
+      <HintPath>..\packages\EmbedIO.3.4.3\lib\netstandard2.0\EmbedIO.dll</HintPath>
     </Reference>
-    <Reference Include="FontAwesome5.Net40, Version=2.0.0.0, Culture=neutral, PublicKeyToken=9cfaf01297a008f8, processorArchitecture=MSIL">
-      <HintPath>..\packages\FontAwesome5.2.0.0\lib\net40\FontAwesome5.Net40.dll</HintPath>
+    <Reference Include="FontAwesome5, Version=2.0.8.0, Culture=neutral, PublicKeyToken=9cfaf01297a008f8, processorArchitecture=MSIL">
+      <HintPath>..\packages\FontAwesome5.2.0.8\lib\net462\FontAwesome5.dll</HintPath>
+    </Reference>
+    <Reference Include="FontAwesome5.Net, Version=2.0.8.0, Culture=neutral, PublicKeyToken=9cfaf01297a008f8, processorArchitecture=MSIL">
+      <HintPath>..\packages\FontAwesome5.2.0.8\lib\net462\FontAwesome5.Net.dll</HintPath>
     </Reference>
     <Reference Include="HtmlAgilityPack, Version=1.11.11.0, Culture=neutral, PublicKeyToken=bd319b19eaf3b43a, processorArchitecture=MSIL">
       <HintPath>..\packages\HtmlAgilityPack.1.11.11\lib\Net45\HtmlAgilityPack.dll</HintPath>
     </Reference>
     <Reference Include="Ical.Net, Version=4.1.8.0, Culture=neutral, PublicKeyToken=65c0446cd019ea53, processorArchitecture=MSIL">
       <HintPath>..\packages\Ical.Net.4.1.11\lib\net46\Ical.Net.dll</HintPath>
+    </Reference>
+    <Reference Include="NAudio, Version=1.10.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\NAudio.1.10.0\lib\net35\NAudio.dll</HintPath>
     </Reference>
     <Reference Include="Newtonsoft.Json, Version=12.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
       <HintPath>..\packages\Newtonsoft.Json.12.0.2\lib\net45\Newtonsoft.Json.dll</HintPath>
@@ -132,10 +139,14 @@
     <Reference Include="SQLitePCLRaw.provider.e_sqlite3, Version=1.0.0.0, Culture=neutral, PublicKeyToken=9c301db686d0bd12, processorArchitecture=MSIL">
       <HintPath>..\packages\SQLitePCLRaw.provider.e_sqlite3.net45.1.1.5\lib\net45\SQLitePCLRaw.provider.e_sqlite3.dll</HintPath>
     </Reference>
+    <Reference Include="Swan.Lite, Version=3.0.0.0, Culture=neutral, PublicKeyToken=30c707c872729fff, processorArchitecture=MSIL">
+      <HintPath>..\packages\Unosquare.Swan.Lite.3.0.0\lib\net461\Swan.Lite.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Configuration" />
     <Reference Include="System.Data" />
     <Reference Include="System.Deployment" />
+    <Reference Include="System.DirectoryServices" />
     <Reference Include="System.Drawing" />
     <Reference Include="System.IO.Compression" />
     <Reference Include="System.Reflection, Version=4.1.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
@@ -150,6 +161,9 @@
     </Reference>
     <Reference Include="System.ServiceModel" />
     <Reference Include="System.Transactions" />
+    <Reference Include="System.ValueTuple, Version=4.0.3.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.ValueTuple.4.5.0\lib\net461\System.ValueTuple.dll</HintPath>
+    </Reference>
     <Reference Include="System.Web" />
     <Reference Include="System.Windows" />
     <Reference Include="System.Windows.Forms" />
@@ -171,8 +185,10 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="Functions\audio.cs" />
+    <Compile Include="Functions\localapi.cs" />
     <Compile Include="Functions\WPFConverter.cs" />
-    <Compile Include="Functions\CycleCalculator.cs" />
+    <Compile Include="Functions\TwoWeekTimetable.cs" />
     <Compile Include="Functions\Calendar.cs" />
     <Compile Include="DefaultClock.xaml.cs">
       <DependentUpon>DefaultClock.xaml</DependentUpon>
@@ -195,6 +211,9 @@
       <DependentUpon>ResponseControl.xaml</DependentUpon>
     </Compile>
     <Compile Include="Settings.cs" />
+    <Compile Include="TableWindow.xaml.cs">
+      <DependentUpon>TableWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="TaskControl.xaml.cs">
       <DependentUpon>TaskControl.xaml</DependentUpon>
     </Compile>
@@ -233,6 +252,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="ResponseControl.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="TableWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

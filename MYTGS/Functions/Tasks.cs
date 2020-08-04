@@ -365,7 +365,10 @@ namespace MYTGS
                 TaskDueLbl.Content = ((Firefly.FullTask)TaskStack.SelectedItem).dueDate.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss");
                 TaskIdText.Text = ((Firefly.FullTask)TaskStack.SelectedItem).id.ToString();
                 TaskClassKeysListBox.ItemsSource = ((Firefly.FullTask)TaskStack.SelectedItem).ClassKeys;
-                TaskHyperLink.NavigateUri = new Uri(FF.SchoolUrl + "/set-tasks/" + ((Firefly.FullTask)TaskStack.SelectedItem).id);
+
+                //Check if Uri is acceptable
+                if (Uri.IsWellFormedUriString(FF.SchoolUrl + "/set-tasks/" + ((Firefly.FullTask)TaskStack.SelectedItem).id, UriKind.Absolute))
+                    TaskHyperLink.NavigateUri = new Uri(FF.SchoolUrl + "/set-tasks/" + ((Firefly.FullTask)TaskStack.SelectedItem).id);
 
                 TaskStackPanel.Children.Clear();
                 if (((Firefly.FullTask)TaskStack.SelectedItem).descriptionDetails.htmlContent != null)
@@ -446,6 +449,29 @@ namespace MYTGS
                                             PopulateTextblockHtmlToXaml(item, ref text);
                                             text.Margin = new Thickness(40, 0, 0, 0);
                                             text.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0xFF, 0x18, 0x66, 0x3e));
+                                            grid.Children.Add(text);
+                                            TaskStackPanel.Children.Add(border);
+                                        }
+                                        else if (item.HasClass("ff-style-important"))
+                                        {
+                                            Border border = new Border();
+                                            border.CornerRadius = new CornerRadius(10);
+                                            border.Padding = new Thickness(5);
+                                            border.VerticalAlignment = VerticalAlignment.Top;
+                                            border.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0xFF, 0xff, 0xbd, 0xbf));
+                                            Grid grid = new Grid();
+                                            border.Child = grid;
+                                            FontAwesome5.SvgAwesome icon = new FontAwesome5.SvgAwesome();
+                                            icon.Icon = FontAwesome5.EFontAwesomeIcon.Solid_Exclamation;
+                                            icon.Height = 30;
+                                            icon.Margin = new Thickness(12, 3, 0, 0);
+                                            icon.HorizontalAlignment = HorizontalAlignment.Left;
+                                            icon.VerticalAlignment = VerticalAlignment.Top;
+                                            icon.Foreground = System.Windows.Media.Brushes.White;
+                                            grid.Children.Add(icon);
+                                            PopulateTextblockHtmlToXaml(item, ref text);
+                                            text.Margin = new Thickness(40, 0, 0, 0);
+                                            text.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0xFF, 0x80, 0x00, 0x04));
                                             grid.Children.Add(text);
                                             TaskStackPanel.Children.Add(border);
                                         }

@@ -26,6 +26,17 @@ namespace MYTGS
 
             DashboardMessagePanel.Children.Clear();
 
+            if (html == null)
+            {
+
+                Label lbl = new Label();
+                lbl.Content = "**Error Processing Dashboard Format";
+                lbl.Foreground = System.Windows.Media.Brushes.Red;
+                lbl.FontSize = 16;
+                DashboardMessagePanel.Children.Insert(0, lbl);
+                return;
+            }
+
             bool errors = false;
             try
             {
@@ -104,6 +115,29 @@ namespace MYTGS
                                     grid.Children.Add(text);
                                     DashboardMessagePanel.Children.Add(border);
                                 }
+                                else if (item.HasClass("ff-style-important"))
+                                {
+                                    Border border = new Border();
+                                    border.CornerRadius = new CornerRadius(10);
+                                    border.Padding = new Thickness(5);
+                                    border.VerticalAlignment = VerticalAlignment.Top;
+                                    border.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0xFF, 0xff, 0xbd, 0xbf));
+                                    Grid grid = new Grid();
+                                    border.Child = grid;
+                                    FontAwesome5.SvgAwesome icon = new FontAwesome5.SvgAwesome();
+                                    icon.Icon = FontAwesome5.EFontAwesomeIcon.Solid_Exclamation;
+                                    icon.Height = 30;
+                                    icon.Margin = new Thickness(12,3,0,0);
+                                    icon.HorizontalAlignment = HorizontalAlignment.Left;
+                                    icon.VerticalAlignment = VerticalAlignment.Top;
+                                    icon.Foreground = System.Windows.Media.Brushes.White;
+                                    grid.Children.Add(icon);
+                                    PopulateTextblockHtmlToXaml(item, ref text);
+                                    text.Margin = new Thickness(40, 0, 0, 0);
+                                    text.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0xFF, 0x80, 0x00, 0x04));
+                                    grid.Children.Add(text);
+                                    DashboardMessagePanel.Children.Add(border);
+                                }
                                 else
                                 {
                                     PopulateTextblockHtmlToXaml(item, ref text);
@@ -134,8 +168,6 @@ namespace MYTGS
                 lbl.FontSize = 16;
                 DashboardMessagePanel.Children.Insert(0, lbl);
             }
-
-            return;
         }
 
         private void PopulateTextblockHtmlToXaml(HtmlNode item, ref TextBlock textbl)
@@ -165,7 +197,11 @@ namespace MYTGS
                 {
                     Hyperlink link = new Hyperlink();
                     link.RequestNavigate += Hyperlink_RequestNavigate;
-                    link.NavigateUri = new Uri(isHyperlink);
+                    link.ToolTip = isHyperlink;
+                    if (Uri.IsWellFormedUriString(isHyperlink, UriKind.Absolute))
+                    {
+                        link.NavigateUri = new Uri(isHyperlink);
+                    }
                     if (isBold && isUnderlined)
                     {
                         link.Inlines.Add(new Run(text) { FontWeight = FontWeights.Bold, TextDecorations = TextDecorations.Underline });
@@ -212,7 +248,7 @@ namespace MYTGS
         {
             while (Parent != Child)
             {
-                if(Child.Name == "b")
+                if(Child.Name == "b" || (Child.Attributes["style"] != null && Child.Attributes["style"].Value.Contains("font-weight: bold;")))
                 {
                     return true;
                 }
@@ -227,7 +263,7 @@ namespace MYTGS
             }
             return false;
         }
-
+        
         private string IsAnchor(HtmlNode Parent, HtmlNode Child, string schooluri)
         {
             while (Parent != Child)
@@ -235,13 +271,19 @@ namespace MYTGS
                 if (Child.Name == "a" && Child.Attributes["href"] != null)
                 {
                     string anchorurl = Child.Attributes["href"].Value;
-                    if (anchorurl.StartsWith("../"))
+                    int find = anchorurl.IndexOf("http://");
+                    int finds = anchorurl.IndexOf("https://");
+                    if (find > -1)
+                    {
+                        return anchorurl.Substring(find);
+                    }
+                    else if (finds > -1)
+                    {
+                        return anchorurl.Substring(finds);
+                    }
+                    else if (anchorurl.StartsWith("../"))
                     {
                         anchorurl = schooluri + anchorurl.Substring(2);
-                    }
-                    else if (anchorurl.StartsWith("http://") || anchorurl.StartsWith("https://"))
-                    {
-                        return anchorurl;
                     }
                     else if (anchorurl.StartsWith("/"))
                     {
@@ -249,6 +291,7 @@ namespace MYTGS
                     }
                     else
                     {
+                        //Fallback response
                         return schooluri + "/" + anchorurl;
                     }
                 }

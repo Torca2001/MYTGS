@@ -32,7 +32,15 @@ namespace MYTGS
 
         public void Initalize()
         {
-            db = new SQLiteConnection(databasePath);
+            try
+            {
+                db = new SQLiteConnection(databasePath);
+            }
+            catch
+            {
+                Console.WriteLine("Warning - Settings is using a memory DB");
+                db = new SQLiteConnection(":memory:");
+            }
             db.CreateTable<SettingsItem>();
         }
 
@@ -47,6 +55,28 @@ namespace MYTGS
             {
                 return "";
             }
+        }
+
+        public bool GetBoolSettings(string name,bool fallback = false)
+        {
+            switch (GetSettings(name))
+            {
+                case "1":
+                    return true;
+                case "0":
+                    return false;
+                default:
+                    return fallback;
+            }
+        }
+
+        public int GetIntSettings(string name, int fallback = 0)
+        {
+            int tempint = fallback;
+            if (int.TryParse(GetSettings(name), out tempint) == false){
+                return fallback;
+            }
+            return tempint;
         }
 
     }
@@ -82,6 +112,96 @@ namespace MYTGS
             }
         }
         private string calendarUrl { get; set; }
+
+        public string SelectedAudioDevice
+        {
+            get => selectedAudioDevice;
+            set
+            {
+                selectedAudioDevice = value;
+                if (PropertyChanged != null)
+                {
+                    PropertyChanged(this, new PropertyChangedEventArgs("SelectedAudioDevice"));
+                }
+                settings.SaveSettings("SelectedAudioDevice", value);
+            }
+        }
+        private string selectedAudioDevice { get; set; }
+
+        public string XOffset
+        {
+            get => xOffset;
+            set
+            {
+                xOffset = value;
+                if (PropertyChanged != null)
+                {
+                    PropertyChanged(this, new PropertyChangedEventArgs("XOffset"));
+                }
+                settings.SaveSettings("XOffset", value);
+            }
+        }
+        private string xOffset { get; set; }
+
+        public string YOffset
+        {
+            get => yOffset;
+            set
+            {
+                yOffset = value;
+                if (PropertyChanged != null)
+                {
+                    PropertyChanged(this, new PropertyChangedEventArgs("YOffset"));
+                }
+                settings.SaveSettings("YOffset", value);
+            }
+        }
+        private string yOffset { get; set; }
+
+        public bool TablePreference
+        {
+            get => ClockWindow.TablePositionPreference;
+            set
+            {
+                ClockWindow.TablePositionPreference = value;
+                if (PropertyChanged != null)
+                {
+                    PropertyChanged(this, new PropertyChangedEventArgs("TablePreference"));
+                }
+                settings.SaveSettings("TablePreference", value == true ? "1" : "0");
+            }
+        }
+        
+        public int ScreenPreference
+        {
+            get => screenPreference;
+            set
+            {
+                screenPreference = value;
+                if (PropertyChanged != null)
+                {
+                    PropertyChanged(this, new PropertyChangedEventArgs("ScreenPreference"));
+                }
+                settings.SaveSettings("ScreenPreference", value.ToString());
+            }
+        }
+        private int screenPreference { get; set; }
+
+
+        public int ClockPlacementMode
+        {
+            get => clockPlacementMode;
+            set
+            {
+                clockPlacementMode = value;
+                if (PropertyChanged != null)
+                {
+                    PropertyChanged(this, new PropertyChangedEventArgs("ClockPlacementMode"));
+                }
+                settings.SaveSettings("ClockPlacementMode", value.ToString());
+            }
+        }
+        private int clockPlacementMode { get; set; }
 
         public bool FadeOnHover
         {
@@ -161,9 +281,24 @@ namespace MYTGS
                 {
                     PropertyChanged(this, new PropertyChangedEventArgs("Offset"));
                 }
-                settings.SaveSettings("Offset", Offset.ToString());
+                settings.SaveSettings("Offset", value.ToString());
             }
         }
+
+        public int VolumeCtrl
+        {
+            get => volumeCtrl;
+            set
+            {
+                volumeCtrl = value;
+                if (PropertyChanged != null)
+                {
+                    PropertyChanged(this, new PropertyChangedEventArgs("VolumeCtrl"));
+                }
+                settings.SaveSettings("VolumeCtrl", value.ToString());
+            }
+        }
+        private int volumeCtrl { get; set; }
 
         public bool StartMinimized
         {
@@ -180,82 +315,141 @@ namespace MYTGS
         }
         private bool startMinimized { get; set; }
 
+        public bool SilentUpdate
+        {
+            get => silentUpdate;
+            set
+            {
+                silentUpdate = value;
+                if (PropertyChanged != null)
+                {
+                    PropertyChanged(this, new PropertyChangedEventArgs("SilentUpdate"));
+                }
+                settings.SaveSettings("SilentUpdate", value == true ? "1" : "0");
+            }
+        }
+        private bool silentUpdate { get; set; }
+
+        public bool EnableBell
+        {
+            get => enableBell;
+            set
+            {
+                enableBell = value;
+                if (PropertyChanged != null)
+                {
+                    PropertyChanged(this, new PropertyChangedEventArgs("EnableBell"));
+                }
+                settings.SaveSettings("EnableBell", value == true ? "1" : "0");
+            }
+        }
+        private bool enableBell { get; set; }
+        public bool EnableLocalApi
+        {
+            get => enableLocalApi;
+            set
+            {
+                enableLocalApi = value;
+                if (PropertyChanged != null)
+                {
+                    PropertyChanged(this, new PropertyChangedEventArgs("EnableLocalApi"));
+                }
+                //switch api on depending on switch
+                if (enableLocalApi)
+                {
+                    initializeLocalApi((ApiEnableOpenNetwork ? "http://+:" : "http://localhost:") + ApiPort, String.Join(",", ApiCorsOrigins));
+                }
+                else
+                {
+                    LocalapiWebserver?.Dispose();
+                }
+                settings.SaveSettings("EnableLocalApi", value == true ? "1" : "0");
+            }
+        }
+        private bool enableLocalApi { get; set; }
+
+        public bool ApiHideName
+        {
+            get => apiHideName;
+            set
+            {
+                apiHideName = value;
+                if (PropertyChanged != null)
+                {
+                    PropertyChanged(this, new PropertyChangedEventArgs("ApiHideName"));
+                }
+                settings.SaveSettings("ApiHideName", value == true ? "1" : "0");
+            }
+        }
+        private bool apiHideName { get; set; }
+
+        public bool ApiEnableOpenNetwork
+        {
+            get => apiEnableOpenNetwork;
+            set
+            {
+                apiEnableOpenNetwork = value;
+                if (PropertyChanged != null)
+                {
+                    PropertyChanged(this, new PropertyChangedEventArgs("ApiEnableOpenNetwork"));
+                }
+                //Restart api if needed
+                if (enableLocalApi)
+                {
+                    initializeLocalApi((ApiEnableOpenNetwork ? "http://+:" : "http://localhost:") + ApiPort, String.Join(",", ApiCorsOrigins));
+                }
+                settings.SaveSettings("ApiEnableOpenNetwork", value == true ? "1" : "0");
+            }
+        }
+        private bool apiEnableOpenNetwork { get; set; }
+
+        public List<string> ApiCorsOrigins
+        {
+            get => apiCorsOrigins;
+            set
+            {
+                apiCorsOrigins = value;
+                if (PropertyChanged != null)
+                {
+                    PropertyChanged(this, new PropertyChangedEventArgs("ApiCorsOrigins"));
+                }
+                //Restart api if needed
+                if (enableLocalApi)
+                {
+                    initializeLocalApi((ApiEnableOpenNetwork ? "http://+:" : "http://localhost:") + ApiPort, String.Join(",", ApiCorsOrigins));
+                }
+                settings.SaveSettings("ApiCorsOrigins", JsonConvert.SerializeObject(value));
+            }
+        }
+        private List<string> apiCorsOrigins { get; set; }
+
+        public DateTime DomainLastActive
+        {
+            get => domainLastActive;
+            set
+            {
+                domainLastActive = value;
+                if (PropertyChanged != null)
+                    PropertyChanged(this, new PropertyChangedEventArgs("DomainLastActive"));
+                settings.SaveSettings("DomainLastActive", JsonConvert.SerializeObject(value));
+            }
+        }
+
+        private DateTime domainLastActive { get; set; }
+
         private void LoadSettings()
         {
-            switch (settings.GetSettings("FadeOnHover"))
-            {
-                case "1":
-                    FadeOnHover = true;
-                    break;
-                case "0":
-                    FadeOnHover = false;
-                    break;
-                default:
-                    FadeOnHover = true;
-                    break;
-            }
-
-            switch (settings.GetSettings("HideOnFinish"))
-            {
-                case "1":
-                    HideOnFinish = true;
-                    break;
-                case "0":
-                    HideOnFinish = false;
-                    break;
-                default:
-                    HideOnFinish = true;
-                    break;
-            }
-
-            switch (settings.GetSettings("StartMinimized"))
-            {
-                case "1":
-                    StartMinimized = true;
-                    break;
-                case "0":
-                    StartMinimized = false;
-                    break;
-                default:
-                    StartMinimized = true;
-                    break;
-            }
-
-            switch (settings.GetSettings("CombineDoubles"))
-            {
-                case "1":
-                    CombineDoubles = true;
-                    break;
-                case "0":
-                    CombineDoubles = false;
-                    break;
-                default:
-                    CombineDoubles = true;
-                    break;
-            }
-
-            switch (settings.GetSettings("HideOnFullscreen"))
-            {
-                case "1":
-                    HideOnFullscreen = true;
-                    break;
-                case "0":
-                    HideOnFullscreen = false;
-                    break;
-                default:
-                    HideOnFullscreen = true;
-                    break;
-            }
-
-            if (settings.GetSettings("Offset").Length > 0)
-            {
-
-                Offset = int.Parse(settings.GetSettings("Offset"));
-            }
-            else
-            {
-                Offset = 0;
-            }
+            EnableBell = settings.GetBoolSettings("EnableBell");
+            TablePreference = settings.GetBoolSettings("TablePreference");
+            FadeOnHover = settings.GetBoolSettings("FadeOnHover", true);
+            HideOnFinish = settings.GetBoolSettings("HideOnFinish", true);
+            SilentUpdate = settings.GetBoolSettings("SilentUpdate", true);
+            StartMinimized = settings.GetBoolSettings("StartMinimized", true);
+            CombineDoubles = settings.GetBoolSettings("CombineDoubles",true);
+            ApiHideName = settings.GetBoolSettings("ApiHideName", true);
+            HideOnFullscreen = settings.GetBoolSettings("HideOnFullscreen",true);
+            Offset = settings.GetIntSettings("Offset");
+            VolumeCtrl = settings.GetIntSettings("VolumeCtrl", 100);
 
             try
             {
@@ -263,11 +457,46 @@ namespace MYTGS
                 {
                     FirstDayDate = new DateTime(2020, 2, 10);
                 }
-                FirstDayDate = JsonConvert.DeserializeObject<DateTime>(settings.GetSettings("FirstDayDate"));
+                else
+                {
+                    FirstDayDate = JsonConvert.DeserializeObject<DateTime>(settings.GetSettings("FirstDayDate"));
+                }
             }
             catch
             {
                 FirstDayDate = new DateTime(2020, 2, 10);
+            }
+
+            try
+            {
+                if (settings.GetSettings("ApiCorsOrigins") == "")
+                {
+                    apiCorsOrigins = new List<string>() {"https://torca.xyz"};
+                }
+                else
+                {
+                    apiCorsOrigins = JsonConvert.DeserializeObject<List<string>>(settings.GetSettings("ApiCorsOrigins"));
+                }
+            }
+            catch
+            {
+                apiCorsOrigins = new List<string>() { "https://torca.xyz" };
+            }
+
+            try
+            {
+                if (settings.GetSettings("DomainLastActive") == "")
+                {
+                    DomainLastActive = new DateTime(2020, 2, 10);
+                }
+                else
+                {
+                    DomainLastActive = JsonConvert.DeserializeObject<DateTime>(settings.GetSettings("DomainLastActive"));
+                }
+            }
+            catch
+            {
+                DomainLastActive = new DateTime(2020, 2, 10);
             }
 
             try
@@ -293,6 +522,31 @@ namespace MYTGS
                     lastEPR.Day = 1;
                 }
             }
+
+            //Executed later to prevent constant restart
+            EnableLocalApi = settings.GetBoolSettings("EnableLocalApi", true);
+
+
+            Guid tp = Guid.Empty;
+            Guid.TryParse(settings.GetSettings("SelectedAudioDevice"), out tp);
+            SelectedAudioDevice = tp.ToString();
+
+
+            XOffset = settings.GetSettings("XOffset");
+            YOffset = settings.GetSettings("YOffset");
+
+            ScreenPreference = settings.GetIntSettings("ScreenPreference",0);
+            tmpScreen = ScreenPreference;
+            int tmpint = settings.GetIntSettings("ClockPlacementMode");
+            if (tmpint >= 0 && tmpint <= 5)
+            {
+                ClockPlacementMode = tmpint;
+            }
+            else
+            {
+                ClockPlacementMode = 0;
+            }
+
 
             if (settings.GetSettings("CalendarUrl").Length > 0)
             {

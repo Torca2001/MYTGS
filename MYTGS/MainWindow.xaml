@@ -54,7 +54,7 @@
                 <TabItem.Header>
                     <fa:SvgAwesome Icon="Solid_Home" Width="27" Foreground="White"/>
                 </TabItem.Header>
-                <Grid Background="#FFE5E5E5" Margin="-2">
+                <Grid Margin="-2">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="100"/>
                         <RowDefinition Height="100"/>
@@ -257,14 +257,14 @@
                                     </Label>
 
                                     <Label Content="Hidden" Grid.Row="2" FontSize="14"/>
-                                    <CheckBox x:Name="TaskSearchHiddenCheck" Grid.Row="2" Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    <local:SlideSwitch x:Name="TaskSearchHiddenCheck" Grid.Row="2" Grid.Column="1" Width="50" Height="20" HorizontalAlignment="Center" VerticalAlignment="Center"/>
 
                                     <Label Content="Deleted" Grid.Row="3" FontSize="14"/>
-                                    <CheckBox x:Name="TaskSearchDeletedCheck" Grid.Row="3" Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    <local:SlideSwitch x:Name="TaskSearchDeletedCheck" Grid.Row="3" Grid.Column="1" Width="50" Height="20" HorizontalAlignment="Center" VerticalAlignment="Center"/>
 
 
                                     <Label Content="Hide Marked" Grid.Row="4" FontSize="11" VerticalAlignment="Center"/>
-                                    <CheckBox x:Name="TaskSearchHideMarked" Grid.Row="4" Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    <local:SlideSwitch x:Name="TaskSearchHideMarked" Grid.Row="4" Grid.Column="1" Width="50" Height="20" HorizontalAlignment="Center" VerticalAlignment="Center"/>
 
                                     <Button Content="Search" Grid.Row="5" Grid.ColumnSpan="2" Foreground="#FF0481FF" FontSize="14" Margin="5" HorizontalAlignment="Right" Width="70" Click="SearchTextBox_Update" VerticalAlignment="Center" Height="25"/>
                                 </Grid>
@@ -482,16 +482,34 @@
 
 
                                     <Label Content="Run on Startup" ToolTip="Sets a registry key to startup program" Grid.Row="0" FontSize="16" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                                    <CheckBox x:Name="StartupCheckBox" Grid.Column="1" Grid.Row="0" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="50,0,0,0" Unchecked="StartupCheckBox_Unchecked" />
+                                    <local:SlideSwitch x:Name="StartupCheckBox" Height="20" Grid.Column="1" Grid.Row="0" Margin="30,0,0,0" HorizontalAlignment="Left" Width="50" ChangedSelected="StartupCheckBox_Changed" />
 
                                     <Label Content="Start Minimized" ToolTip="During startup main window will remain hidden" Grid.Row="1" FontSize="16" HorizontalContentAlignment="Right" VerticalAlignment="Center"/>
-                                    <CheckBox Grid.Row="1" Grid.Column="1" Margin="50,0,0,0" VerticalAlignment="Center" IsChecked="{Binding StartMinimized}"/>
+                                    <local:SlideSwitch Height="20" Grid.Column="1" Grid.Row="1" Margin="30,0,0,0" HorizontalAlignment="Left" Width="50" HundredPercent="{Binding StartMinimized}" />
 
                                     <Label x:Name="UpdateVerLabel" ToolTip="Update program to latest version" Content="Updates v: Error" FontSize="16" Grid.Row="2" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                                     <Button x:Name="UpdateButton" Grid.Row="2" Grid.Column="1" Width="70" Height="30" HorizontalAlignment="Left" FontSize="16" Margin="20,0,0,0" Click="UpdateButton_Click">Check</Button>
 
                                     <Label Content="Early Finish" ToolTip="During startup main window will remain hidden" Grid.Row="3" FontSize="16" HorizontalContentAlignment="Right" VerticalAlignment="Center"/>
-                                    <CheckBox x:Name="earlyfinishcheck" Grid.Row="3" Grid.Column="1" Margin="50,0,0,0" VerticalAlignment="Center" Click="L_Click" />
+                                    <local:SlideSwitch x:Name="earlyfinishcheck" Height="20" Grid.Column="1" Grid.Row="3" Margin="30,0,0,0" HorizontalAlignment="Left" Width="50" ChangedSelected="L_Click" Options="3" Selected="2"/>
+                                    <Label Grid.Column="1" Grid.Row="3" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="90,0,0,0" FontSize="14">
+                                        <Label.Style>
+                                            <Style TargetType="{x:Type Label}">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding ElementName=earlyfinishcheck, Path=Selected}" Value="1">
+                                                        <Setter Property="Content" Value="Off"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding ElementName=earlyfinishcheck, Path=Selected}" Value="2">
+                                                        <Setter Property="Content" Value="Auto"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding ElementName=earlyfinishcheck, Path=Selected}" Value="3">
+                                                        <Setter Property="Content" Value="On"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Label.Style>
+                                    </Label>
+
                                     <Label Content="Today is early finish, according to school calendar" ToolTip="I'm lazy ok" Grid.Row="3" Grid.Column="1" FontSize="12" HorizontalContentAlignment="Left" VerticalAlignment="Center" Margin="80,0,0,0" Foreground="#FFC98309">
                                         <Label.Style>
                                             <Style TargetType="{x:Type Label}">
@@ -506,7 +524,7 @@
                                     </Label>
 
                                     <Label Content="Silent Update" ToolTip="App will auto update without asking you and auto restart" Grid.Row="4" FontSize="16" HorizontalContentAlignment="Right" VerticalAlignment="Center"/>
-                                    <CheckBox x:Name="SilentUpdateTick" Grid.Row="4" Grid.Column="1" Margin="50,0,0,0" VerticalAlignment="Center" IsChecked="{Binding SilentUpdate}" />
+                                    <local:SlideSwitch Height="20" Grid.Column="1" Grid.Row="4" Margin="30,0,0,0" HorizontalAlignment="Left" Width="50" HundredPercent="{Binding SilentUpdate}" />
                                 </Grid>
                             </Expander>
                             <Expander Header="Clock" Foreground="#FF0481FF" Background="{x:Null}" BorderBrush="{x:Null}">
@@ -530,19 +548,20 @@
                                         <RowDefinition Height="auto"/>
                                     </Grid.RowDefinitions>
                                     <Label Content="Hide on fullscreen" ToolTip="Clock will hide if the currently focused window is in fullscreen" Grid.Row="0" FontSize="16" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                                    <CheckBox Grid.Column="1" Grid.Row="0" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="50,0,0,0" IsChecked="{Binding HideOnFullscreen}"/>
+                                    <local:SlideSwitch Height="20" Grid.Column="1" Grid.Row="0" Margin="30,0,0,0" HorizontalAlignment="Left" Width="50" HundredPercent="{Binding HideOnFullscreen}" />
 
                                     <Label Content="Fade on hover" ToolTip="Clock will hide when mouse is over it" Grid.Row="1" FontSize="16" HorizontalContentAlignment="Right" VerticalAlignment="Center"/>
-                                    <CheckBox Grid.Row="1" Grid.Column="1" Margin="50,0,0,0" VerticalAlignment="Center" IsChecked="{Binding FadeOnHover}" HorizontalAlignment="Left" />
+
+                                    <local:SlideSwitch Height="20" Grid.Column="1" Grid.Row="1" Margin="30,0,0,0" HorizontalAlignment="Left" Width="50" HundredPercent="{Binding FadeOnHover}" />
 
                                     <Label Content="Offset (seconds)" ToolTip="Offset the clock to correct for bell misalignment" Grid.Row="2" HorizontalAlignment="Right" VerticalAlignment="Center" FontSize="16"/>
                                     <TextBox Grid.Column="1" Grid.Row="2" Width="100" Height="40" HorizontalAlignment="Left" Text="{Binding Offset, Mode=TwoWay}" FontSize="20" Padding="0,5" Margin="8,0,0,0" HorizontalScrollBarVisibility="Disabled" MaxLength="7" MaxLines="1" PreviewTextInput="TextBox_PreviewTextInput" DataObject.Pasting="TextBoxPasting" PreviewLostKeyboardFocus="TextBox_PreviewLostKeyboardFocus"/>
 
                                     <Label Content="Hide on End" ToolTip="Clock will hide itself if there are no schedules periods for the day" Grid.Row="3" FontSize="16" HorizontalContentAlignment="Right" VerticalAlignment="Center"/>
-                                    <CheckBox Grid.Row="3" Grid.Column="1" Margin="50,0,0,0" VerticalAlignment="Center" IsChecked="{Binding HideOnFinish, Mode=TwoWay}" HorizontalAlignment="Left" />
+                                    <local:SlideSwitch Height="20" Grid.Column="1" Grid.Row="3" Margin="30,0,0,0" HorizontalAlignment="Left" Width="50" HundredPercent="{Binding HideOnFinish, Mode=TwoWay}" />
 
                                     <Label Content="Combine Doubles" ToolTip="Clock will check if there are doubles adding the total time together to display" Grid.Row="4" FontSize="16" HorizontalContentAlignment="Right" VerticalAlignment="Center"/>
-                                    <CheckBox Grid.Row="4" Grid.Column="1" Margin="50,0,0,0" VerticalAlignment="Center" IsChecked="{Binding CombineDoubles, Mode=TwoWay}" HorizontalAlignment="Left" />
+                                    <local:SlideSwitch Height="20" Grid.Column="1" Grid.Row="4" Margin="30,0,0,0" HorizontalAlignment="Left" Width="50" HundredPercent="{Binding CombineDoubles, Mode=TwoWay}" />
                                     <Separator Grid.Row="5" Grid.ColumnSpan="2" VerticalAlignment="Top"/>
 
 
@@ -607,7 +626,7 @@
 
                                     <Label Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="100,0,0,0" Foreground="#FF666666" Content="Note: Will automatically disable at school" FontSize="12" />
                                     <Label Content="Bell Enabled" ToolTip="Sets a registry key to startup program" Grid.Row="0" FontSize="16" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                                    <CheckBox x:Name="BellCheckBox" Grid.Column="1" Grid.Row="0" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="50,0,0,0" IsChecked="{Binding EnableBell}" />
+                                    <local:SlideSwitch Height="20" Grid.Column="1" Grid.Row="0" Margin="30,0,0,0" HorizontalAlignment="Left" Width="50" HundredPercent="{Binding EnableBell}" />
 
                                     <Label Content="Volume" ToolTip="Really... Its the volume for the bell duh" Grid.Row="1" FontSize="16" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                                     <Slider x:Name="BellVolumeSlider" Grid.Row="1" Grid.Column="1" VerticalAlignment="Center" Margin="0" Maximum="100" LargeChange="10" SmallChange="1" AutoToolTipPlacement="TopLeft" MaxWidth="400" HorizontalAlignment="Left" Width="400" Value="{Binding VolumeCtrl}"/>
@@ -642,7 +661,7 @@
 
                                     <Label Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="100,0,0,0" Foreground="#FF666666" Content="Note: Will expose your timetable and name to local applications" FontSize="12" />
                                     <Label Content="Enable web api" ToolTip="Allows third party applications to query this application using Rest api to get timetable and user information" Grid.Row="0" FontSize="16" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                                    <CheckBox x:Name="LocalApiCheckBox" Grid.Column="1" Grid.Row="0" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="50,0,0,0" IsChecked="{Binding EnableLocalApi}" />
+                                    <local:SlideSwitch Height="20" Grid.Column="1" Grid.Row="0" Margin="30,0,0,0" HorizontalAlignment="Left" Width="50" HundredPercent="{Binding EnableLocalApi}" />
 
 
                                     <TextBlock Grid.Column="1" Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="100,0,0,0" Foreground="#FF666666" FontSize="12">
@@ -650,12 +669,12 @@
                                         <Hyperlink NavigateUri="http://Torca.xyz/mytgs/dev" TargetName="Github" RequestNavigate="Hyperlink_RequestNavigate" ToolTip="http://torca.xyz/mytgs/dev" >here</Hyperlink>
                                     </TextBlock>
                                     <Label Content="Hide name" ToolTip="Hides your name and student id from the api" Grid.Row="1" FontSize="16" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                                    <CheckBox x:Name="ApiHideNameCheckBox" Grid.Column="1" Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="50,0,0,0" IsChecked="{Binding ApiHideName}" />
+                                    <local:SlideSwitch Height="20" Grid.Column="1" Grid.Row="1" Margin="30,0,0,0" HorizontalAlignment="Left" Width="50" HundredPercent="{Binding ApiHideName}" />
 
 
                                     <Label Grid.Column="1" Grid.Row="2" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="100,0,0,0" Foreground="#FFFF4848" Content="Note: Do not enable unless you know what your doing!" FontSize="12" />
                                     <Label Content="Open to network" ToolTip="Allows other computers on your network to access the api. This will allow unrestricted access to your information! Use at your own risk" Grid.Row="2" FontSize="16" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                                    <CheckBox x:Name="ApiEnableOpenNetworkCheckBox" Grid.Column="1" Grid.Row="2" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="50,0,0,0" IsChecked="{Binding ApiEnableOpenNetwork}" />
+                                    <local:SlideSwitch x:Name="ApiEnableOpenNetworkCheckBox" Height="20" Grid.Column="1" Grid.Row="2" Margin="30,0,0,0" HorizontalAlignment="Left" Width="50" HundredPercent="{Binding ApiEnableOpenNetwork}" />
 
 
                                     <Label Content="Authorised websites" ToolTip="Will allow a website to access the api to get timetable information and user information. Do not allow dodgy or malicious sites!" Grid.Row="3" FontSize="14" HorizontalAlignment="Right" VerticalAlignment="Top"/>

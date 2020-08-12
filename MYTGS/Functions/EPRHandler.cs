@@ -25,7 +25,7 @@ namespace MYTGS
             EPRcollection EPR = new EPRcollection(new DateTime(), new Dictionary<string, TimetablePeriod>(), 0);
 
             
-            ////Debug function to only run during debug mode
+            //Debug function to only run during debug mode
             //if (System.Deployment.Application.ApplicationDeployment.IsNetworkDeployed == false)
             //{
             //    Console.WriteLine("EPR Debug mode on!");

@@ -78,7 +78,6 @@ namespace MYTGS
 
         private void UserEarlyFinishEvent(SQLiteConnection sqldb, bool flag, DateTime date)
         {
-            var result = sqldb.Table<EarlyFinishEvent>().Where(p => p.Date == DateTime.Now.Date.Year + " " + DateTime.Now.Date.Month + " " + DateTime.Now.Date.Day);
             try
             {
                 sqldb.InsertOrReplace(new EarlyFinishEvent
@@ -93,7 +92,21 @@ namespace MYTGS
             }
         }
 
-        private bool IsTodayEarlyFinish(SQLiteConnection sqldb)
+        private void RemoveEarlyFinish(SQLiteConnection sqldb, DateTime date)
+        {
+            try
+            {
+                string datestr = date.ToShortDateString();
+                var result = sqldb.Table<EarlyFinishEvent>().Where(p => p.Date == datestr);
+                sqldb.DeleteAll(result);
+            }
+            catch
+            {
+                logger.Warn("Failed to delete early finish events!");
+            }
+        }
+
+        private bool? UserScheduledEarlyFinish(SQLiteConnection sqldb)
         {
             //User calendar takes priority
             string comp = DateTime.Now.ToShortDateString();
@@ -101,6 +114,25 @@ namespace MYTGS
             if (result.Count() > 0)
             {
                 return result.First().OverrideEarlyFinishto;
+            }
+
+            return null;
+        }
+
+        private bool IsTodayEarlyFinish(SQLiteConnection sqldb, bool autocalendar = true)
+        {
+            //User calendar takes priority
+            string comp = DateTime.Now.ToShortDateString();
+            var result = sqldb.Table<EarlyFinishEvent>().Where(p => p.Date == comp).ToArray();
+            if (result.Count() > 0)
+            {
+                return result.First().OverrideEarlyFinishto;
+            }
+
+            //No need to check outlook calendar
+            if (autocalendar == false)
+            {
+                return false;
             }
 
             //Check outlook calendar last as user takes priority

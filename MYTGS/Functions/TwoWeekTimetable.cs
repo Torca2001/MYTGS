@@ -147,7 +147,7 @@ namespace MYTGS
             }
         }
 
-        private TimetablePeriod[,] LocateTwoWeeks(DateTime Firstday, int ShiftAhead = 2, int Maxshifting = 5)
+        private TimetablePeriod[,] LocateTwoWeeks(DateTime Firstday, int ShiftBack = 2, int Maxshifting = 2)
         {
             //Firstday needs to be a monday
             if (Firstday.DayOfWeek != DayOfWeek.Monday)
@@ -157,8 +157,8 @@ namespace MYTGS
 
             TimetablePeriod[,] Days = new TimetablePeriod[10, 7];
             bool AllPopulated = false;
-            int TwoWeekShift = ShiftAhead;
-            while (AllPopulated == false && -TwoWeekShift < Maxshifting)
+            int TwoWeekShift = -ShiftBack;
+            while (AllPopulated == false && TwoWeekShift < Maxshifting)
             {
                 AllPopulated = true;
                 for (int i = 0; i < 10; i++)
@@ -183,7 +183,7 @@ namespace MYTGS
                     //If one or more valid periods accept the day
                     if (founds == 0)
                     {
-                        TwoWeekShift--;
+                        TwoWeekShift++;
                         AllPopulated = false;
                         break;
                     }
@@ -199,7 +199,6 @@ namespace MYTGS
             {
                 return new TimetablePeriod[0, 0];
             }
-
             return Days;
         }
 

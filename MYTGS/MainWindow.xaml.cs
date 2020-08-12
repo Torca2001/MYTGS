@@ -174,7 +174,19 @@ namespace MYTGS
             bool Firsttime = settings.GetSettings("FirstTime") == "";
             IsFirstTime = Firsttime;
 
-            earlyfinishcheck.IsChecked = IsTodayEarlyFinish(dbSchool);
+            switch (UserScheduledEarlyFinish(dbSchool))
+            {
+                case null:
+                    earlyfinishcheck.Selected = 2;
+                    break;
+                case false:
+                    earlyfinishcheck.Selected = 1;
+                    break;
+                case true:
+                    earlyfinishcheck.Selected = 3;
+                    break;
+            }
+            
             
             ClockWindow.Background = new SolidColorBrush(Color.FromArgb(0, 255, 255, 255));
             ClockWindow.Show();
@@ -218,6 +230,7 @@ namespace MYTGS
             FF.OnSiteConnect += SiteConnected;
             FF.SchoolCheckAsync("MYTGS");
 
+            //reset application startup location for live versions of application
             using (RegistryKey key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true))
             {
                 if (System.Deployment.Application.ApplicationDeployment.IsNetworkDeployed && !IsApplicationInStartup())
@@ -229,8 +242,7 @@ namespace MYTGS
                     }
                 }
             }
-            StartupCheckBox.IsChecked = IsApplicationInStartup();
-            StartupCheckBox.Checked += StartupCheckBox_Checked;
+            StartupCheckBox.HundredPercent = IsApplicationInStartup();
             
 
             UpdateCalendar(dbSchool);
@@ -1037,15 +1049,18 @@ namespace MYTGS
             ClockWindow?.Close();
         }
 
-
-        private void StartupCheckBox_Checked(object sender, RoutedEventArgs e)
+        private void StartupCheckBox_Changed(object sender, EventArgs e)
         {
-            AddApplicationToStartup();
-        }
-
-        private void StartupCheckBox_Unchecked(object sender, RoutedEventArgs e)
-        {
-            RemoveApplicationFromStartup();
+            if (IsLoaded == false)
+                return;
+            if (StartupCheckBox.HundredPercent)
+            {
+                AddApplicationToStartup();
+            }
+            else
+            {
+                RemoveApplicationFromStartup();
+            }
         }
 
         private void DisplayMsg(string msg, Brush background = null, Brush foreground = null)
@@ -1254,9 +1269,24 @@ namespace MYTGS
             MainTabControl.SelectedIndex = 7;
         }
 
-        private void L_Click(object sender, RoutedEventArgs e)
+        private void L_Click(object sender, EventArgs e)
         {
-            UserEarlyFinishEvent(dbSchool, earlyfinishcheck.IsChecked == true);
+            if (IsLoaded == false)
+                return;
+
+            SlideSwitch.ChangedEventArgs slide = (SlideSwitch.ChangedEventArgs)e;
+            switch (earlyfinishcheck.Selected)
+            {
+                case 1:
+                    UserEarlyFinishEvent(dbSchool, false);
+                    break;
+                case 2:
+                    RemoveEarlyFinish(dbSchool, DateTime.Now);
+                    break;
+                case 3:
+                    UserEarlyFinishEvent(dbSchool, true);
+                    break;
+            }
             CheckForEarlyFinishes(dbSchool);
             List<TimetablePeriod> todayPeriods = EPRCheck(LastEPR, Timetablehandler.ProcessForUse(DBGetDayEvents(dbSchool, DateTime.Now), DateTime.UtcNow, IsTodayEarlyFinish(dbSchool), IsEventsUptoDate(4), false));
             ClockWindow.SetSchedule(todayPeriods);
@@ -1281,9 +1311,9 @@ namespace MYTGS
             string idtext = TaskIDSearchBox.Text;
             string classtext = TaskClassSearchBox.Text;
             int selindex = TaskSearchCombo.SelectedIndex;
-            bool deletecheck = (bool)TaskSearchDeletedCheck.IsChecked;
-            bool hiddencheck = (bool)TaskSearchHiddenCheck.IsChecked;
-            bool hideMarked = (bool)TaskSearchHideMarked.IsChecked;
+            bool deletecheck = TaskSearchDeletedCheck.HundredPercent;
+            bool hiddencheck = TaskSearchHiddenCheck.HundredPercent;
+            bool hideMarked = TaskSearchHideMarked.HundredPercent;
             SearchThread = new Thread(() =>
             {
                 try

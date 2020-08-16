@@ -215,11 +215,14 @@ namespace MYTGS
                 }
             }
 
+            /*
+            //WHY WHY THEY DO THIS
             if (table[0].Start != DateTime.MinValue)
             {
                 //Override first period to start at 8:15 since for some reason it always starts at 8:30???
                 table[0].Start = DateTimespan(table[0].Start, DefaultPeriods[0, 0].Start);
             }
+            */
 
             return table;
         }

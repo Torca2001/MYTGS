@@ -462,6 +462,17 @@ namespace MYTGS
                     FadeInWindow();
                 }
             }
+
+            if (CurrentlyHovered == false && Hiding == false)
+            {
+                //Ensure window is on top
+                IntPtr topMostHandle = WindowFromPoint(new POINT((int)(Left + ActualWidth / 2), (int)(Top + ActualHeight / 2)));
+                if (topMostHandle != new WindowInteropHelper(this).Handle)
+                {
+                    Topmost = false;
+                    Topmost = true;
+                }
+            }
         }
 
         private int CalculateTimetableDay(DateTime LocalDay)
@@ -618,12 +629,37 @@ namespace MYTGS
         private const int GWL_EX_STYLE = -20;
         private const int WS_EX_APPWINDOW = 0x00040000, WS_EX_TOOLWINDOW = 0x00000080;
 
+        [DllImport("user32.dll")]
+        static extern bool SetWindowPos(
+        IntPtr hWnd,
+        IntPtr hWndInsertAfter,
+        int X,
+        int Y,
+        int cx,
+        int cy,
+        uint uFlags);
+
+        const UInt32 SWP_NOSIZE = 0x0001;
+        const UInt32 SWP_NOMOVE = 0x0002;
+
+        static readonly IntPtr HWND_BOTTOM = new IntPtr(1);
+
+        static void SendWpfWindowBack(Window window)
+        {
+            var hWnd = new WindowInteropHelper(window).Handle;
+            SetWindowPos(hWnd, HWND_BOTTOM, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE);
+        }
+
+
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
             //Variable to hold the handle for the form
             var helper = new WindowInteropHelper(this).Handle;
             //Performing some magic to hide the form from Alt+Tab
             SetWindowLong(helper, GWL_EX_STYLE, (GetWindowLong(helper, GWL_EX_STYLE) | WS_EX_TOOLWINDOW) & ~WS_EX_APPWINDOW);
+
+            //send to back
+            //SendWpfWindowBack(Application.Current.MainWindow);
         }
 
         private void ContentGrid_MouseDown(object sender, MouseButtonEventArgs e)
@@ -648,6 +684,22 @@ namespace MYTGS
 
         [DllImport("user32.dll")]
         private static extern bool GetWindowRect(HandleRef hWnd, [In, Out] ref RECT rect);
+
+        [DllImport("user32.dll")]
+        public static extern IntPtr WindowFromPoint(POINT point);
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct POINT
+        {
+            public int x;
+            public int y;
+
+            public POINT(int x, int y)
+            {
+                this.x = x;
+                this.y = y;
+            }
+        }
 
         [DllImport("user32.dll")]
         private static extern IntPtr GetForegroundWindow();

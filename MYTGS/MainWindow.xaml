@@ -556,7 +556,7 @@
                                         <ComboBoxItem Content="Free"/>
                                     </ComboBox>
 
-                                    <Label Content="Horizotal Offset" ToolTip="Amount of pixels or % away from the placement corner" Grid.Row="6" FontSize="16" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                    <Label Content="Horizontal Offset" ToolTip="Amount of pixels or % away from the placement corner" Grid.Row="6" FontSize="16" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                                     <TextBox x:Name="HorizontalOffsetTextbox" Grid.Column="1" Grid.Row="6" Width="100" Height="40" HorizontalAlignment="Left" FontSize="20" Padding="0,5" Margin="8,0,0,0" HorizontalScrollBarVisibility="Disabled" MaxLength="15" MaxLines="1" Text="0" TextAlignment="Right" TextChanged="OffsetTextbox_TextChanged" BorderThickness="2" LostKeyboardFocus="IntTextbox_LostKeyboardFocus" />
 
                                     <Label Content="Vertical Offset" ToolTip="Amount of pixels or % away from the placement corner" Grid.Row="7" FontSize="16" HorizontalAlignment="Right" VerticalAlignment="Center"/>
